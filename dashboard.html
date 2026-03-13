@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PM System — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #07090D;
+    --surface:   #0E1521;
+    --card:      #131E2E;
+    --card2:     #18253A;
+    --border:    #1E3050;
+    --border2:   #2A4570;
+    --primary:   #3B9EFF;
+    --primary2:  #1A6FD4;
+    --accent:    #00D2B8;
+    --success:   #22C55E;
+    --warning:   #F59E0B;
+    --danger:    #EF4444;
+    --pending:   #A78BFA;
+    --text:      #E2EBF5;
+    --text2:     #94A9C0;
+    --text3:     #4A6380;
+    --font:      'Noto Sans Thai', sans-serif;
+    --mono:      'JetBrains Mono', monospace;
+    --r:         10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 15px; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 220px; min-width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: sticky; top: 0; height: 100vh;
+    overflow-y: auto;
+  }
+  .logo {
+    padding: 22px 20px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-mark {
+    font-size: 22px; font-weight: 700;
+    letter-spacing: -0.5px; color: var(--primary);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-mark span { color: var(--text); }
+  .logo-sub { font-size: 11px; color: var(--text3); margin-top: 3px; letter-spacing: 0.5px; }
+  .nav { padding: 12px 10px; flex: 1; }
+  .nav-section {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--text3); padding: 12px 10px 6px; text-transform: uppercase;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 8px;
+    cursor: pointer; color: var(--text2);
+    font-size: 14px; font-weight: 500;
+    transition: all 0.15s; margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--card); color: var(--text); }
+  .nav-item.active { background: rgba(59,158,255,0.12); color: var(--primary); }
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-badge {
+    margin-left: auto; background: var(--danger);
+    color: #fff; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px; min-width: 20px; text-align: center;
+  }
+  .sidebar-footer {
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text3);
+  }
+
+  /* ── Main ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar {
+    height: 56px; min-height: 56px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 24px; gap: 16px;
+  }
+  .topbar-title { font-size: 16px; font-weight: 700; flex: 1; }
+  .filter-group { display: flex; gap: 8px; }
+  .select {
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--font);
+    font-size: 13px; padding: 6px 10px;
+    border-radius: 8px; outline: none; cursor: pointer;
+  }
+  .select:focus { border-color: var(--primary); }
+  .btn {
+    padding: 7px 16px; border: none; border-radius: 8px;
+    font-family: var(--font); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary2); }
+  .btn-ghost { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--card2); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-success { background: var(--success); color: #000; }
+  .btn-danger  { background: var(--danger);  color: #fff; }
+  .btn-warning { background: var(--warning); color: #000; }
+
+  /* ── Content ── */
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* ── KPI Cards ── */
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px; margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r); padding: 18px 16px;
+    position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+  }
+  .kpi-card.k-planned::before   { background: var(--text3); }
+  .kpi-card.k-assigned::before  { background: var(--warning); }
+  .kpi-card.k-doing::before     { background: var(--primary); }
+  .kpi-card.k-pending::before   { background: var(--pending); }
+  .kpi-card.k-done::before      { background: var(--success); }
+  .kpi-card.k-overdue::before   { background: var(--danger); }
+
+  .kpi-num   { font-size: 34px; font-weight: 700; font-family: var(--mono); line-height: 1; }
+  .kpi-label { font-size: 12px; color: var(--text2); margin-top: 6px; }
+  .kpi-delta { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .kpi-icon  { position: absolute; right: 14px; top: 14px; font-size: 22px; opacity: 0.3; }
+
+  /* ── Section Layout ── */
+  .two-col { display: grid; grid-template-columns: 1fr 340px; gap: 16px; margin-bottom: 20px; }
+  .section-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r); overflow: hidden;
+  }
+  .section-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title { font-size: 14px; font-weight: 700; flex: 1; }
+  .section-body  { padding: 16px; }
+
+  /* ── Table ── */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tbl th {
+    text-align: left; padding: 8px 12px;
+    background: var(--card2); color: var(--text2);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .tbl td {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl tr:hover td { background: var(--card2); }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 700; white-space: nowrap;
+  }
+  .pill-planned   { background: rgba(74,99,128,0.2);  color: var(--text2); }
+  .pill-assigned  { background: rgba(245,158,11,0.15); color: var(--warning); }
+  .pill-doing     { background: rgba(59,158,255,0.15); color: var(--primary); }
+  .pill-pending   { background: rgba(167,139,250,0.15);color: var(--pending); }
+  .pill-approved  { background: rgba(34,197,94,0.15);  color: var(--success); }
+  .pill-rejected  { background: rgba(239,68,68,0.15);  color: var(--danger); }
+
+  .machine-badge {
+    display: inline-block; padding: 2px 8px;
+    border-radius: 4px; font-family: var(--mono);
+    font-size: 11px; font-weight: 600;
+  }
+  .m-P1 { background: rgba(59,158,255,0.15); color: #60AFFE; }
+  .m-P2 { background: rgba(34,197,94,0.15);  color: #4ADE80; }
+  .m-P3 { background: rgba(245,158,11,0.15); color: #FBB040; }
+  .m-P4 { background: rgba(167,139,250,0.15);color: #C4B5FD; }
+  .m-C4 { background: rgba(0,210,184,0.15);  color: #2DD4BF; }
+  .m-C5 { background: rgba(239,68,68,0.15);  color: #F87171; }
+
+  .dept-badge {
+    display: inline-block; padding: 2px 7px;
+    border-radius: 4px; font-size: 11px; font-weight: 700;
+  }
+  .d-ME { background: rgba(59,158,255,0.12); color: var(--primary); }
+  .d-EE { background: rgba(245,158,11,0.12); color: var(--warning); }
+
+  .freq-tag {
+    display: inline-block; padding: 1px 7px;
+    border-radius: 4px; font-family: var(--mono);
+    font-size: 11px;
+    background: rgba(255,255,255,0.06); color: var(--text2);
+  }
+
+  .action-btns { display: flex; gap: 6px; }
+  .wo-id-link {
+    font-family: var(--mono); font-size: 12px;
+    color: var(--primary); cursor: pointer; text-decoration: none;
+  }
+  .wo-id-link:hover { text-decoration: underline; }
+
+  /* ── Calendar ── */
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-day-label {
+    text-align: center; font-size: 10px; font-weight: 700;
+    color: var(--text3); padding: 6px 0; letter-spacing: 0.5px;
+  }
+  .cal-day {
+    background: var(--card2); border-radius: 8px;
+    min-height: 64px; padding: 6px;
+    border: 1px solid var(--border); cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .cal-day:hover { border-color: var(--border2); }
+  .cal-day.today { border-color: var(--primary); }
+  .cal-day.other-month { opacity: 0.35; }
+  .cal-day-num { font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; }
+  .today .cal-day-num { color: var(--primary); }
+  .cal-dot {
+    display: inline-block; width: 6px; height: 6px;
+    border-radius: 50%; margin: 1px;
+  }
+
+  /* ── Machine Bar Chart ── */
+  .machine-bar {
+    margin-bottom: 12px;
+  }
+  .machine-bar-label {
+    display: flex; justify-content: space-between; margin-bottom: 4px;
+    font-size: 13px;
+  }
+  .machine-bar-track {
+    height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;
+  }
+  .machine-bar-fill {
+    height: 100%; border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    z-index: 100; display: none; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; width: 100%; max-width: 560px;
+    max-height: 90vh; display: flex; flex-direction: column;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:scale(0.96); } }
+  .modal-head {
+    padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+  }
+  .modal-title { font-size: 17px; font-weight: 700; flex: 1; }
+  .modal-close { cursor: pointer; color: var(--text3); font-size: 20px; line-height: 1; padding: 4px; }
+  .modal-body  { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .modal-foot  { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+  .form-row  { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; letter-spacing: 0.3px; }
+  .form-input {
+    width: 100%; background: var(--card);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--font); font-size: 14px;
+    padding: 10px 12px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--primary); }
+  .form-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* ── Detail View ── */
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title { font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--text3); text-transform: uppercase; margin-bottom: 10px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .detail-item { }
+  .detail-key   { font-size: 11px; color: var(--text3); margin-bottom: 2px; }
+  .detail-val   { font-size: 14px; font-weight: 500; }
+  .checklist-result-item {
+    padding: 10px 14px; border-radius: 8px; margin-bottom: 6px;
+    border: 1px solid var(--border);
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .res-ok   { border-left: 3px solid var(--success); }
+  .res-bad  { border-left: 3px solid var(--danger); }
+  .res-skip { border-left: 3px solid var(--text3); opacity: 0.6; }
+  .res-icon { font-size: 16px; margin-top: 1px; }
+  .res-texts { flex: 1; min-width: 0; }
+  .res-name  { font-size: 13px; font-weight: 600; }
+  .res-val   { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  /* ── Toast & Empty ── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--card2); color: var(--text);
+    padding: 12px 20px; border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    opacity: 0; transform: translateY(8px);
+    transition: all 0.3s; pointer-events: none; z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--text2); }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .loading { display: flex; justify-content: center; align-items: center; padding: 48px; }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Responsive ── */
+  @media (max-width: 1100px) { .two-col { grid-template-columns: 1fr; } }
+  @media (max-width: 768px) {
+    .sidebar { width: 56px; min-width: 56px; }
+    .sidebar .logo-mark span, .sidebar .logo-sub, .nav-section, .nav-item span:not(.icon), .nav-badge, .sidebar-footer { display: none; }
+    .nav-item { justify-content: center; }
+    .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">⚙️ <span>PM System</span></div>
+    <div class="logo-sub">PREDICTIVE MAINTENANCE</div>
+  </div>
+  <div class="nav">
+    <div class="nav-section">หลัก</div>
+    <div class="nav-item active" onclick="navTo('dashboard')"><span class="icon">📊</span><span>ภาพรวม</span></div>
+    <div class="nav-item" onclick="navTo('workorders')"><span class="icon">📋</span><span>Work Orders</span><span class="nav-badge" id="nb-pending">0</span></div>
+    <div class="nav-item" onclick="navTo('calendar')"><span class="icon">📅</span><span>ปฏิทิน PM</span></div>
+    <div class="nav-section">จัดการ</div>
+    <div class="nav-item" onclick="navTo('create')"><span class="icon">➕</span><span>วางแผน PM</span></div>
+    <div class="nav-item" onclick="navTo('approve')"><span class="icon">✅</span><span>อนุมัติ</span><span class="nav-badge" id="nb-approve">0</span></div>
+    <div class="nav-item" onclick="navTo('technicians')"><span class="icon">👷</span><span>ช่าง</span></div>
+  </div>
+  <div class="sidebar-footer" id="last-refresh">–</div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">ภาพรวม PM</div>
+    <div class="filter-group" id="topbar-filters"></div>
+  </div>
+  <div class="content" id="content">
+    <div class="loading"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- CREATE WO MODAL -->
+<div class="modal-overlay" id="modal-create">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">➕ วางแผน PM ใหม่</div>
+      <div class="modal-close" onclick="closeModal('modal-create')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid2">
+        <div class="form-row">
+          <label class="form-label">รหัสเครื่องจักร</label>
+          <select class="form-input" id="f-machine" onchange="loadEquipOptions()">
+            <option value="">-- เลือกเครื่อง --</option>
+            <option>P1</option><option>P2</option><option>P3</option><option>P4</option>
+            <option>C4</option><option>C5</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">ส่วนงาน</label>
+          <select class="form-input" id="f-dept" onchange="loadEquipOptions()">
+            <option value="">-- เลือกส่วนงาน --</option>
+            <option value="ME">ME – เครื่องกล</option>
+            <option value="EE">EE – ไฟฟ้า</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid2">
+        <div class="form-row">
+          <label class="form-label">ความถี่ PM</label>
+          <select class="form-input" id="f-freq">
+            <option value="">-- ความถี่ --</option>
+            <option value="2W">2W – ทุก 2 สัปดาห์</option>
+            <option value="1M">1M – ทุก 1 เดือน</option>
+            <option value="3M">3M – ทุก 3 เดือน</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">อุปกรณ์ (ถ้าต้องการระบุ)</label>
+          <select class="form-input" id="f-equip">
+            <option value="">-- ทุกอุปกรณ์ --</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid2">
+        <div class="form-row">
+          <label class="form-label">วันที่วางแผน</label>
+          <input type="date" class="form-input" id="f-date">
+        </div>
+        <div class="form-row">
+          <label class="form-label">มอบหมายให้ช่าง</label>
+          <select class="form-input" id="f-tech">
+            <option value="">-- เลือกช่างทีหลัง --</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">หมายเหตุ</label>
+        <input type="text" class="form-input" id="f-note" placeholder="รายละเอียดเพิ่มเติม...">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-create')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="createWO()">➕ สร้าง Work Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- WO DETAIL MODAL -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-head">
+      <div class="modal-title" id="detail-title">รายละเอียด WO</div>
+      <div class="modal-close" onclick="closeModal('modal-detail')">✕</div>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+    <div class="modal-foot" id="detail-foot"></div>
+  </div>
+</div>
+
+<!-- ASSIGN MODAL -->
+<div class="modal-overlay" id="modal-assign">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head">
+      <div class="modal-title">👷 มอบหมายงาน</div>
+      <div class="modal-close" onclick="closeModal('modal-assign')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">WO ID</label>
+        <input type="text" class="form-input" id="a-woid" readonly>
+      </div>
+      <div class="form-row">
+        <label class="form-label">เลือกช่าง</label>
+        <select class="form-input" id="a-tech"></select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-assign')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="doAssign()">📤 มอบหมาย</button>
+    </div>
+  </div>
+</div>
+
+<!-- APPROVE MODAL -->
+<div class="modal-overlay" id="modal-approve">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head">
+      <div class="modal-title" id="apr-title">ตรวจสอบผล PM</div>
+      <div class="modal-close" onclick="closeModal('modal-approve')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">หมายเหตุ (ถ้ามี)</label>
+        <textarea class="form-input" id="apr-comment" rows="3" placeholder="ความเห็นจากหัวหน้า..."></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger"   onclick="doReject()">❌ ส่งคืน</button>
+      <button class="btn btn-success"  onclick="doApprove()">✅ อนุมัติ</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec'; // ← ใส่ URL จริง
+
+let appState = {
+  page:        'dashboard',
+  dashboard:   null,
+  workOrders:  [],
+  technicians: [],
+  pmDb:        [],
+  calendar:    {},
+  currentWO:   null,
+  currentMonth: new Date().toISOString().substring(0,7),
+};
+
+// ── API ────────────────────────────────────────────────────────
+async function api(action, params={}, body=null) {
+  const GET_ACTIONS = ['getPMDatabase','getWorkOrders','getWorkOrderById','getChecklist','getTechnicians','getDashboard','getCalendar'];
+  const isGet = GET_ACTIONS.includes(action);
+  let url = `${GAS_URL}?action=${action}`;
+  let opts = {};
+  if (isGet) {
+    Object.entries(params).forEach(([k,v]) => { if(v!==''&&v!=null) url+=`&${k}=${encodeURIComponent(v)}`; });
+  } else {
+    opts = { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action,...(body||params)}) };
+  }
+  const res  = await fetch(url, opts);
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error||'API Error');
+  return json.data;
+}
+
+// ── Navigation ─────────────────────────────────────────────────
+async function navTo(page) {
+  appState.page = page;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector(`[onclick="navTo('${page}')"]`)?.classList.add('active');
+
+  const titles = { dashboard:'ภาพรวม PM', workorders:'Work Orders', calendar:'ปฏิทิน PM', create:'วางแผน PM', approve:'รออนุมัติ', technicians:'จัดการช่าง' };
+  document.getElementById('page-title').textContent = titles[page] || page;
+  document.getElementById('topbar-filters').innerHTML = '';
+
+  const c = document.getElementById('content');
+  c.innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
+
+  if (page === 'dashboard')    await renderDashboard();
+  if (page === 'workorders')   await renderWorkOrders();
+  if (page === 'calendar')     await renderCalendar();
+  if (page === 'create')       openModal('modal-create'), await renderDashboard();
+  if (page === 'approve')      await renderApprove();
+  if (page === 'technicians')  await renderTechnicians();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+async function renderDashboard() {
+  const [dash, wos] = await Promise.all([
+    api('getDashboard'),
+    api('getWorkOrders'),
+  ]);
+  appState.dashboard  = dash;
+  appState.workOrders = wos;
+
+  const pendingCount  = wos.filter(w => w.status === 'รอตรวจสอบ').length;
+  document.getElementById('nb-pending').textContent = pendingCount;
+  document.getElementById('nb-approve').textContent = pendingCount;
+  document.getElementById('last-refresh').textContent = '🔄 ' + new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+
+  const s = dash.stats;
+  const content = document.getElementById('content');
+  content.innerHTML = `
+  <div class="kpi-grid">
+    ${kpiCard('วางแผน',     s.planned,    'k-planned', '📋')}
+    ${kpiCard('มอบหมาย',   s.assigned,   'k-assigned','📤')}
+    ${kpiCard('กำลังทำ',   s.inprogress, 'k-doing',   '🔧')}
+    ${kpiCard('รอตรวจสอบ', s.pending,    'k-pending', '⏳')}
+    ${kpiCard('อนุมัติ',   s.approved,   'k-done',    '✅')}
+    ${kpiCard('เกินกำหนด', s.overdue,    'k-overdue', '🔴')}
+  </div>
+  <div class="two-col">
+    <div class="section-card">
+      <div class="section-head"><div class="section-title">📋 งาน PM ล่าสุด</div>
+        <button class="btn btn-ghost btn-sm" onclick="navTo('workorders')">ดูทั้งหมด →</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr>
+            <th>WO ID</th><th>เครื่อง</th><th>ส่วนงาน</th><th>ความถี่</th><th>ช่าง</th><th>สถานะ</th><th></th>
+          </tr></thead>
+          <tbody>${dash.recent.slice(0,10).map(woRow).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="section-card">
+      <div class="section-head"><div class="section-title">🏭 สถานะตามเครื่อง</div></div>
+      <div class="section-body">${machineChart(dash.byMachine)}</div>
+    </div>
+  </div>`;
+}
+
+function kpiCard(label, num, cls, icon) {
+  return `<div class="kpi-card ${cls}">
+    <div class="kpi-icon">${icon}</div>
+    <div class="kpi-num">${num ?? 0}</div>
+    <div class="kpi-label">${label}</div>
+  </div>`;
+}
+
+function machineChart(byMachine) {
+  const machines = ['P1','P2','P3','P4','C4','C5'];
+  const colors   = {'P1':'#60AFFE','P2':'#4ADE80','P3':'#FBB040','P4':'#C4B5FD','C4':'#2DD4BF','C5':'#F87171'};
+  return machines.map(m => {
+    const d    = byMachine[m] || { total:0, done:0 };
+    const pct  = d.total > 0 ? Math.round(d.done / d.total * 100) : 0;
+    return `<div class="machine-bar">
+      <div class="machine-bar-label">
+        <span><span class="machine-badge m-${m}">${m}</span></span>
+        <span style="color:var(--text2);font-size:12px">${d.done}/${d.total} (${pct}%)</span>
+      </div>
+      <div class="machine-bar-track">
+        <div class="machine-bar-fill" style="width:${pct}%;background:${colors[m]||'#888'}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Work Orders ────────────────────────────────────────────────
+async function renderWorkOrders(filter={}) {
+  const wos = await api('getWorkOrders', filter);
+  appState.workOrders = wos;
+
+  const filterHTML = `
+    <select class="select" onchange="renderWorkOrders({status:this.value})">
+      <option value="">สถานะทั้งหมด</option>
+      <option>วางแผน</option><option>มอบหมาย</option><option>กำลังทำ</option>
+      <option>รอตรวจสอบ</option><option>อนุมัติ</option><option>ส่งคืน</option>
+    </select>
+    <select class="select" onchange="renderWorkOrders({machine:this.value})">
+      <option value="">เครื่องทั้งหมด</option>
+      <option>P1</option><option>P2</option><option>P3</option><option>P4</option>
+      <option>C4</option><option>C5</option>
+    </select>
+    <button class="btn btn-primary btn-sm" onclick="openModal('modal-create')">➕ วางแผนใหม่</button>`;
+  document.getElementById('topbar-filters').innerHTML = filterHTML;
+
+  if (wos.length === 0) {
+    document.getElementById('content').innerHTML = `<div class="empty-state"><div class="icon">📋</div>ไม่มี Work Order</div>`;
+    return;
+  }
+  document.getElementById('content').innerHTML = `
+    <div class="section-card" style="overflow-x:auto">
+      <table class="tbl">
+        <thead><tr>
+          <th>WO ID</th><th>เครื่อง</th><th>ส่วนงาน</th><th>ความถี่</th>
+          <th>อุปกรณ์</th><th>วันที่</th><th>ช่าง</th><th>สถานะ</th><th>Action</th>
+        </tr></thead>
+        <tbody>${wos.map(woRowFull).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function woRow(wo) {
+  return `<tr>
+    <td><a class="wo-id-link" onclick="openWODetail('${wo.woId}')">${wo.woId}</a></td>
+    <td><span class="machine-badge m-${wo.machine}">${wo.machine}</span></td>
+    <td><span class="dept-badge d-${wo.dept}">${wo.dept}</span></td>
+    <td><span class="freq-tag">${wo.freq}</span></td>
+    <td>${wo.assignedName||'<span style="color:var(--text3)">ยังไม่มอบ</span>'}</td>
+    <td>${statusPill(wo.status)}</td>
+    <td><div class="action-btns">
+      ${wo.status === 'วางแผน' || wo.status === 'มอบหมาย' ? `<button class="btn btn-ghost btn-sm" onclick="openAssign('${wo.woId}')">👷 มอบ</button>` : ''}
+      ${wo.status === 'รอตรวจสอบ' ? `<button class="btn btn-warning btn-sm" onclick="openApprove('${wo.woId}')">⚡ ตรวจ</button>` : ''}
+    </div></td>
+  </tr>`;
+}
+
+function woRowFull(wo) {
+  const overdue = wo.dueDate && wo.dueDate < new Date().toISOString().split('T')[0];
+  return `<tr>
+    <td><a class="wo-id-link" onclick="openWODetail('${wo.woId}')">${wo.woId}</a></td>
+    <td><span class="machine-badge m-${wo.machine}">${wo.machine}</span></td>
+    <td><span class="dept-badge d-${wo.dept}">${wo.dept}</span></td>
+    <td><span class="freq-tag">${wo.freq}</span></td>
+    <td style="font-size:12px;color:var(--text2)">${wo.equipName||'ทุกอุปกรณ์'}</td>
+    <td style="font-size:12px;color:${overdue?'var(--danger)':'var(--text2)'}">${wo.plannedDate}</td>
+    <td style="font-size:13px">${wo.assignedName||'<span style="color:var(--text3)">–</span>'}</td>
+    <td>${statusPill(wo.status)}</td>
+    <td><div class="action-btns">
+      <button class="btn btn-ghost btn-sm" onclick="openWODetail('${wo.woId}')">📄</button>
+      ${wo.status === 'วางแผน' || wo.status === 'มอบหมาย' ? `<button class="btn btn-ghost btn-sm" onclick="openAssign('${wo.woId}')">👷</button>` : ''}
+      ${wo.status === 'รอตรวจสอบ' ? `<button class="btn btn-warning btn-sm" onclick="openApprove('${wo.woId}')">⚡ ตรวจ</button>` : ''}
+    </div></td>
+  </tr>`;
+}
+
+function statusPill(s) {
+  const map = { 'วางแผน':'pill-planned','มอบหมาย':'pill-assigned','กำลังทำ':'pill-doing',
+                'รอตรวจสอบ':'pill-pending','อนุมัติ':'pill-approved','ส่งคืน':'pill-rejected','ปิดงาน':'pill-approved' };
+  return `<span class="status-pill ${map[s]||''}">${s}</span>`;
+}
+
+// ── Calendar ───────────────────────────────────────────────────
+async function renderCalendar() {
+  document.getElementById('topbar-filters').innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="changeMonth(-1)">← ก่อนหน้า</button>
+    <span style="color:var(--text2);font-size:13px;min-width:90px;text-align:center" id="cal-month-label"></span>
+    <button class="btn btn-ghost btn-sm" onclick="changeMonth(1)">ถัดไป →</button>`;
+
+  await loadCalendar();
+}
+
+async function loadCalendar() {
+  const cal = await api('getCalendar', { month: appState.currentMonth });
+  appState.calendar = cal;
+  const [y, m] = appState.currentMonth.split('-').map(Number);
+  document.getElementById('cal-month-label').textContent =
+    new Date(y, m-1, 1).toLocaleDateString('th-TH', {month:'long', year:'numeric'});
+
+  const firstDay  = new Date(y, m-1, 1).getDay();
+  const daysCount = new Date(y, m, 0).getDate();
+  const today     = new Date().toISOString().split('T')[0];
+  const DAYS      = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+  let html = `<div class="cal-grid">${DAYS.map(d=>`<div class="cal-day-label">${d}</div>`).join('')}`;
+  // Pad
+  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day other-month"></div>`;
+  for (let d = 1; d <= daysCount; d++) {
+    const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const events  = cal[dateStr] || [];
+    const isToday = dateStr === today;
+    const deptColors = { ME: '#60AFFE', EE: '#FBB040' };
+    const dots = events.map(e => `<div class="cal-dot" style="background:${deptColors[e.dept]||'#888'}"></div>`).join('');
+    html += `<div class="cal-day${isToday?' today':''}" onclick="showCalDay('${dateStr}')">
+      <div class="cal-day-num">${d}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:2px">${dots}</div>
+      ${events.length > 3 ? `<div style="font-size:9px;color:var(--text3)">+${events.length-3}</div>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+  document.getElementById('content').innerHTML = html;
+}
+
+function changeMonth(delta) {
+  const [y, m] = appState.currentMonth.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  appState.currentMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  loadCalendar();
+}
+
+function showCalDay(dateStr) {
+  const events = appState.calendar[dateStr] || [];
+  if (events.length === 0) return;
+  // Quick toast summary
+  showToast(`📅 ${dateStr}: ${events.length} รายการ PM`);
+}
+
+// ── Approve ────────────────────────────────────────────────────
+async function renderApprove() {
+  const wos = await api('getWorkOrders', { status: 'รอตรวจสอบ' });
+  if (wos.length === 0) {
+    document.getElementById('content').innerHTML = `<div class="empty-state"><div class="icon">✅</div>ไม่มีงานรออนุมัติ</div>`;
+    return;
+  }
+  document.getElementById('content').innerHTML = `
+    <div class="section-card" style="overflow-x:auto">
+      <div class="section-head"><div class="section-title">⏳ รออนุมัติ ${wos.length} รายการ</div></div>
+      <table class="tbl">
+        <thead><tr><th>WO ID</th><th>เครื่อง</th><th>ส่วนงาน</th><th>ช่าง</th><th>ส่งเมื่อ</th><th>Action</th></tr></thead>
+        <tbody>${wos.map(w => `<tr>
+          <td><a class="wo-id-link" onclick="openWODetail('${w.woId}')">${w.woId}</a></td>
+          <td><span class="machine-badge m-${w.machine}">${w.machine}</span></td>
+          <td><span class="dept-badge d-${w.dept}">${w.dept}</span></td>
+          <td>${w.assignedName||'–'}</td>
+          <td style="font-size:12px;color:var(--text2)">${w.submittedAt||w.updatedAt}</td>
+          <td><button class="btn btn-warning btn-sm" onclick="openApprove('${w.woId}')">⚡ ตรวจสอบ</button></td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+// ── WO Detail ──────────────────────────────────────────────────
+async function openWODetail(woId) {
+  document.getElementById('detail-body').innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
+  openModal('modal-detail');
+  const [wo, checklist] = await Promise.all([
+    api('getWorkOrderById', { woId }),
+    api('getChecklist', { woId }),
+  ]);
+  appState.currentWO = wo;
+  document.getElementById('detail-title').textContent = `📋 ${wo.woId}`;
+
+  const doneItems = checklist.filter(i => i.status);
+  const okItems   = checklist.filter(i => i.status === 'ปกติ');
+  const badItems  = checklist.filter(i => i.status === 'ไม่ปกติ');
+
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-section-title">ข้อมูล Work Order</div>
+      <div class="detail-grid">
+        <div class="detail-item"><div class="detail-key">เครื่องจักร</div><div class="detail-val"><span class="machine-badge m-${wo.machine}">${wo.machine}</span> ${wo.machineName}</div></div>
+        <div class="detail-item"><div class="detail-key">ส่วนงาน</div><div class="detail-val"><span class="dept-badge d-${wo.dept}">${wo.dept}</span></div></div>
+        <div class="detail-item"><div class="detail-key">ความถี่</div><div class="detail-val"><span class="freq-tag">${wo.freq}</span></div></div>
+        <div class="detail-item"><div class="detail-key">สถานะ</div><div class="detail-val">${statusPill(wo.status)}</div></div>
+        <div class="detail-item"><div class="detail-key">วันที่วางแผน</div><div class="detail-val">${wo.plannedDate}</div></div>
+        <div class="detail-item"><div class="detail-key">กำหนดเสร็จ</div><div class="detail-val">${wo.dueDate||'–'}</div></div>
+        <div class="detail-item"><div class="detail-key">มอบหมายให้</div><div class="detail-val">${wo.assignedName||'–'}</div></div>
+        <div class="detail-item"><div class="detail-key">สร้างโดย</div><div class="detail-val">${wo.createdBy}</div></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">ผลการตรวจ (${doneItems.length}/${checklist.length})</div>
+      <div style="display:flex;gap:12px;margin-bottom:12px;font-size:13px">
+        <span style="color:var(--success)">✅ ปกติ: ${okItems.length}</span>
+        <span style="color:var(--danger)">❌ ไม่ปกติ: ${badItems.length}</span>
+        <span style="color:var(--text2)">⏭ ข้าม: ${checklist.length - doneItems.length}</span>
+      </div>
+      ${checklist.filter(i=>i.status).slice(0,20).map(i => `
+        <div class="checklist-result-item res-${i.status==='ปกติ'?'ok':i.status==='ไม่ปกติ'?'bad':'skip'}">
+          <div class="res-icon">${i.status==='ปกติ'?'✅':i.status==='ไม่ปกติ'?'❌':'⏭'}</div>
+          <div class="res-texts">
+            <div class="res-name">${i.checkItem||i.detail}</div>
+            <div class="res-val">
+              ${i.resultValue ? `ค่า: ${i.resultValue}` : ''}
+              ${i.remark ? ` · ${i.remark}` : ''}
+              ${i.photoUrl ? ` · <a href="${i.photoUrl}" target="_blank" style="color:var(--primary)">📷 ดูรูป</a>` : ''}
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+
+  const foot = document.getElementById('detail-foot');
+  if (wo.status === 'วางแผน' || wo.status === 'มอบหมาย') {
+    foot.innerHTML = `<button class="btn btn-primary" onclick="openAssign('${wo.woId}')">👷 มอบหมายงาน</button>`;
+  } else if (wo.status === 'รอตรวจสอบ') {
+    foot.innerHTML = `<button class="btn btn-success" onclick="openApprove('${wo.woId}')">⚡ ตรวจสอบ & อนุมัติ</button>`;
+  } else {
+    foot.innerHTML = `<div style="color:var(--text2);font-size:13px">${statusPill(wo.status)}</div>`;
+  }
+}
+
+// ── Create WO ─────────────────────────────────────────────────
+async function loadEquipOptions() {
+  const machine = document.getElementById('f-machine').value;
+  const dept    = document.getElementById('f-dept').value;
+  if (!machine || !dept) return;
+
+  const items = await api('getPMDatabase', { machine, dept });
+  const equips = [...new Map(items.map(i => [i['รหัสอุปกรณ์'], i['ชื่ออุปกรณ์']])).entries()];
+  const select = document.getElementById('f-equip');
+  select.innerHTML = `<option value="">-- ทุกอุปกรณ์ --</option>` +
+    equips.map(([id, name]) => `<option value="${id}">${id} – ${name}</option>`).join('');
+
+  const techs = await api('getTechnicians', { dept });
+  appState.technicians = techs;
+  document.getElementById('f-tech').innerHTML = `<option value="">-- เลือกช่างทีหลัง --</option>` +
+    techs.filter(t => t.active !== 'false').map(t => `<option value="${t.techId}|${t.name}">${t.name}</option>`).join('');
+}
+
+async function createWO() {
+  const machine = document.getElementById('f-machine').value;
+  const dept    = document.getElementById('f-dept').value;
+  const freq    = document.getElementById('f-freq').value;
+  const date    = document.getElementById('f-date').value;
+
+  if (!machine || !dept || !freq || !date) { showToast('❌ กรุณากรอกข้อมูลให้ครบ'); return; }
+
+  const equipVal = document.getElementById('f-equip').value;
+  const techVal  = document.getElementById('f-tech').value;
+  const [techId, techName] = techVal ? techVal.split('|') : ['', ''];
+
+  try {
+    const wo = await api('createWorkOrder', {}, {
+      machine, dept, freq,
+      plannedDate: date,
+      equipId: equipVal.split('–')[0]?.trim() || '',
+      note: document.getElementById('f-note').value,
+      createdBy: 'Planner',
+    });
+
+    if (techId) {
+      await api('assignWorkOrder', {}, { woId: wo.woId, techId, techName, assignedBy: 'Planner' });
+    }
+
+    closeModal('modal-create');
+    showToast(`✅ สร้าง ${wo.woId} แล้ว`);
+    navTo('workorders');
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  }
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+}
+
+// ── Assign ────────────────────────────────────────────────────
+async function openAssign(woId) {
+  closeModal('modal-detail');
+  document.getElementById('a-woid').value = woId;
+  const wo    = appState.workOrders.find(w => w.woId === woId) || await api('getWorkOrderById',{woId});
+  const techs = await api('getTechnicians', { dept: wo.dept });
+  document.getElementById('a-tech').innerHTML =
+    techs.filter(t => t.active !== 'false').map(t =>
+      `<option value="${t.techId}|${t.name}">${t.name} (${t.dept})</option>`
+    ).join('');
+  openModal('modal-assign');
+}
+
+async function doAssign() {
+  const woId    = document.getElementById('a-woid').value;
+  const techVal = document.getElementById('a-tech').value;
+  const [techId, techName] = techVal.split('|');
+  try {
+    await api('assignWorkOrder', {}, { woId, techId, techName, assignedBy: 'Supervisor' });
+    closeModal('modal-assign');
+    showToast(`✅ มอบหมาย ${woId} ให้ ${techName} แล้ว`);
+    navTo(appState.page);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+// ── Approve ───────────────────────────────────────────────────
+async function openApprove(woId) {
+  closeModal('modal-detail');
+  const wo = appState.workOrders.find(w => w.woId === woId) || await api('getWorkOrderById',{woId});
+  appState.currentWO = wo;
+  document.getElementById('apr-title').textContent = `⚡ ตรวจสอบ: ${woId}`;
+  document.getElementById('apr-comment').value = '';
+  openModal('modal-approve');
+}
+
+async function doApprove() {
+  const woId    = appState.currentWO?.woId;
+  const comment = document.getElementById('apr-comment').value;
+  try {
+    await api('approveWO', {}, { woId, approvedBy: 'Supervisor', approverName: 'หัวหน้า', comment });
+    closeModal('modal-approve');
+    showToast(`✅ อนุมัติ ${woId} แล้ว`);
+    navTo(appState.page);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+async function doReject() {
+  const woId   = appState.currentWO?.woId;
+  const reason = document.getElementById('apr-comment').value || 'กรุณาตรวจสอบใหม่';
+  try {
+    await api('rejectWO', {}, { woId, rejectedBy: 'Supervisor', rejectorName: 'หัวหน้า', reason });
+    closeModal('modal-approve');
+    showToast(`⚠️ ส่งคืน ${woId} แล้ว`);
+    navTo(appState.page);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+// ── Technicians ───────────────────────────────────────────────
+async function renderTechnicians() {
+  const techs = await api('getTechnicians');
+  appState.technicians = techs;
+  if (techs.length === 0) {
+    document.getElementById('content').innerHTML = `<div class="empty-state"><div class="icon">👷</div>ยังไม่มีช่างในระบบ</div>`;
+    return;
+  }
+  document.getElementById('content').innerHTML = `
+    <div class="section-card" style="overflow-x:auto">
+      <table class="tbl">
+        <thead><tr><th>Tech ID</th><th>ชื่อ</th><th>ส่วนงาน</th><th>บทบาท</th><th>LINE</th><th>สถานะ</th></tr></thead>
+        <tbody>${techs.map(t => `<tr>
+          <td><span style="font-family:var(--mono);font-size:12px">${t.techId}</span></td>
+          <td>${t.name}</td>
+          <td><span class="dept-badge d-${t.dept}">${t.dept}</span></td>
+          <td>${t.role === 'supervisor' ? '👨‍💼 หัวหน้า' : t.role === 'planner' ? '📋 Planner' : '🔧 ช่าง'}</td>
+          <td style="font-size:12px;color:${t.lineUserId?'var(--success)':'var(--text3)'}">${t.lineUserId ? '✅ เชื่อมแล้ว' : '–'}</td>
+          <td style="color:${t.active!=='false'?'var(--success)':'var(--danger)'}">${t.active!=='false'?'ใช้งาน':'ปิดการใช้'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+// ── Helpers ────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id)?.classList.add('open'); }
+function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if(e.target === el) closeModal(el.id); });
+});
+
+// ── Init ───────────────────────────────────────────────────────
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+navTo('dashboard');
+</script>
+</body>
+</html>

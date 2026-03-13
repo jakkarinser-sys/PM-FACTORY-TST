@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PM Checklist</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0F1923;
+    --surface:  #192636;
+    --card:     #1E3045;
+    --border:   #2A4060;
+    --primary:  #00D2FF;
+    --success:  #00E676;
+    --warning:  #FFB300;
+    --danger:   #FF5252;
+    --skip:     #9E9E9E;
+    --text:     #E8F4FD;
+    --sub:      #7B9AB2;
+    --font:     'Sarabun', sans-serif;
+    --mono:     'IBM Plex Mono', monospace;
+    --radius:   12px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* ── Top Bar ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: calc(12px + var(--safe-top)) 16px 12px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .topbar-icon { font-size: 22px; }
+  .topbar-info { flex: 1; min-width: 0; }
+  .topbar-title { font-size: 15px; font-weight: 700; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar-sub   { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .progress-bar {
+    height: 3px; background: var(--border); border-radius: 2px; margin-top: 8px;
+    position: relative; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 2px;
+    background: linear-gradient(90deg, var(--primary), var(--success));
+    transition: width 0.4s ease;
+  }
+
+  /* ── Pages ── */
+  .page { display: none; flex-direction: column; min-height: 100dvh; }
+  .page.active { display: flex; }
+
+  /* ── Home / WO List ── */
+  .section-header {
+    padding: 16px 16px 8px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--sub); text-transform: uppercase;
+  }
+  .wo-card {
+    margin: 4px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .wo-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 4px; border-radius: 2px 0 0 2px;
+  }
+  .wo-card.status-assigned::before  { background: var(--warning); }
+  .wo-card.status-inprogress::before{ background: var(--primary); }
+  .wo-card.status-rejected::before  { background: var(--danger); }
+  .wo-card:active { transform: scale(0.98); opacity: 0.85; }
+
+  .wo-card-head { display: flex; justify-content: space-between; align-items: flex-start; }
+  .wo-id   { font-family: var(--mono); font-size: 11px; color: var(--sub); }
+  .wo-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 20px; letter-spacing: 0.5px;
+  }
+  .badge-assigned   { background: rgba(255,179,0,0.15);   color: var(--warning); }
+  .badge-inprogress { background: rgba(0,210,255,0.15);   color: var(--primary); }
+  .badge-rejected   { background: rgba(255,82,82,0.15);   color: var(--danger); }
+  .badge-pending    { background: rgba(158,158,158,0.15); color: var(--skip); }
+
+  .wo-machine { font-size: 17px; font-weight: 700; margin: 6px 0 3px; }
+  .wo-detail  { font-size: 13px; color: var(--sub); }
+  .wo-due     { font-size: 12px; color: var(--warning); margin-top: 6px; }
+  .wo-due.ok  { color: var(--sub); }
+
+  /* ── Checklist Page ── */
+  .checklist-body {
+    flex: 1; overflow-y: auto;
+    padding: 8px 0 120px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .equip-group { margin-bottom: 4px; }
+  .equip-header {
+    padding: 10px 16px;
+    background: rgba(0,210,255,0.06);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .equip-icon { font-size: 16px; }
+  .equip-name { font-size: 13px; font-weight: 700; color: var(--primary); }
+  .equip-code { font-family: var(--mono); font-size: 11px; color: var(--sub); margin-left: auto; }
+
+  .check-item {
+    margin: 6px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .check-item.done-ok     { border-color: rgba(0,230,118,0.4); }
+  .check-item.done-bad    { border-color: rgba(255,82,82,0.4); }
+  .check-item.done-skip   { border-color: rgba(158,158,158,0.2); opacity: 0.6; }
+
+  .check-item-head {
+    padding: 12px 14px 8px;
+    display: flex; gap: 10px; align-items: flex-start;
+    cursor: pointer;
+  }
+  .seq-badge {
+    min-width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    background: var(--border); color: var(--sub);
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .check-item.done-ok   .seq-badge { background: rgba(0,230,118,0.2); color: var(--success); }
+  .check-item.done-bad  .seq-badge { background: rgba(255,82,82,0.2); color: var(--danger); }
+
+  .check-texts { flex: 1; min-width: 0; }
+  .check-name     { font-size: 14px; font-weight: 600; }
+  .check-criteria { font-size: 12px; color: var(--sub); margin-top: 3px; }
+
+  .check-expand {
+    padding: 0 14px 14px;
+    border-top: 1px solid var(--border);
+    display: none;
+  }
+  .check-expand.open { display: block; }
+  .check-detail-box {
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    font-size: 12px; color: var(--sub); line-height: 1.7;
+  }
+  .check-detail-box strong { color: var(--text); display: block; margin-bottom: 2px; font-size: 11px; letter-spacing: 0.5px; }
+
+  .result-input {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .result-input:focus { border-color: var(--primary); }
+  .result-input::placeholder { color: var(--sub); }
+
+  .status-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .status-btn {
+    flex: 1; padding: 10px 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--sub);
+    font-family: var(--font);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .status-btn .s-icon { font-size: 18px; }
+  .status-btn.active-ok   { border-color: var(--success); background: rgba(0,230,118,0.12); color: var(--success); }
+  .status-btn.active-bad  { border-color: var(--danger);  background: rgba(255,82,82,0.12);  color: var(--danger); }
+  .status-btn.active-skip { border-color: var(--skip);    background: rgba(158,158,158,0.12); color: var(--skip); }
+
+  .remark-input {
+    width: 100%; background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--font); font-size: 13px;
+    padding: 8px 12px; outline: none; resize: vertical; min-height: 60px;
+    transition: border-color 0.2s;
+  }
+  .remark-input:focus { border-color: var(--primary); }
+
+  .photo-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .photo-btn {
+    padding: 8px 14px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--sub);
+    font-family: var(--font);
+    font-size: 13px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: all 0.2s;
+  }
+  .photo-btn:active { border-color: var(--primary); color: var(--primary); }
+  .photo-thumb {
+    width: 64px; height: 64px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid var(--success);
+  }
+
+  /* ── Bottom Action Bar ── */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px calc(12px + var(--safe-bot));
+    display: flex; gap: 10px;
+  }
+  .btn {
+    flex: 1; padding: 14px;
+    border: none; border-radius: var(--radius);
+    font-family: var(--font); font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary { background: var(--primary);  color: #000; }
+  .btn-success { background: var(--success);  color: #000; }
+  .btn-ghost   { background: var(--card);     color: var(--text); border: 1px solid var(--border); }
+  .btn:active  { transform: scale(0.97); opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; pointer-events: none; }
+
+  /* ── Summary Page ── */
+  .summary-header {
+    padding: 32px 20px 24px;
+    text-align: center;
+  }
+  .summary-icon { font-size: 56px; margin-bottom: 12px; }
+  .summary-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .summary-sub   { font-size: 14px; color: var(--sub); }
+  .summary-stats {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px; padding: 0 16px 24px;
+  }
+  .stat-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px;
+    text-align: center;
+  }
+  .stat-num  { font-size: 28px; font-weight: 700; font-family: var(--mono); }
+  .stat-label{ font-size: 11px; color: var(--sub); margin-top: 3px; }
+  .stat-ok  { color: var(--success); }
+  .stat-bad { color: var(--danger); }
+  .stat-skip{ color: var(--skip); }
+
+  /* ── Loading / Empty States ── */
+  .loading-screen {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100dvh; gap: 16px;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state {
+    text-align: center; padding: 60px 24px;
+    color: var(--sub);
+  }
+  .empty-icon  { font-size: 48px; margin-bottom: 12px; }
+  .empty-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .empty-sub   { font-size: 13px; line-height: 1.6; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--card); color: var(--text);
+    padding: 10px 20px; border-radius: 20px;
+    font-size: 13px; font-weight: 600;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    opacity: 0; transition: all 0.3s;
+    pointer-events: none; z-index: 999; white-space: nowrap;
+    border: 1px solid var(--border);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Confirm Dialog ── */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    z-index: 200; display: none;
+    align-items: flex-end; justify-content: center;
+  }
+  .overlay.open { display: flex; }
+  .dialog {
+    background: var(--surface); border-radius: 20px 20px 0 0;
+    width: 100%; padding: 24px 20px calc(24px + var(--safe-bot));
+    border: 1px solid var(--border); border-bottom: none;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } }
+  .dialog-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+  .dialog-body  { font-size: 14px; color: var(--sub); margin-bottom: 20px; line-height: 1.6; }
+  .dialog-btns  { display: flex; gap: 10px; }
+
+  input[type="file"] { display: none; }
+
+  @media (prefers-color-scheme: light) {
+    :root { /* keep dark — it's a factory tool */ }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="page-loading" class="loading-screen">
+  <div class="spinner"></div>
+  <div style="color:var(--sub);font-size:14px">กำลังโหลด...</div>
+</div>
+
+<!-- HOME: WO List -->
+<div id="page-home" class="page">
+  <div class="topbar">
+    <div class="topbar-icon">🔧</div>
+    <div class="topbar-info">
+      <div class="topbar-title" id="home-user-name">ระบบ PM</div>
+      <div class="topbar-sub" id="home-dept">–</div>
+    </div>
+    <div style="font-size:11px;color:var(--sub);font-family:var(--mono)" id="home-date"></div>
+  </div>
+  <div id="wo-list" style="flex:1;overflow-y:auto;padding-bottom:20px;"></div>
+</div>
+
+<!-- CHECKLIST -->
+<div id="page-checklist" class="page">
+  <div class="topbar">
+    <div style="cursor:pointer;padding:4px 8px;color:var(--sub);font-size:20px" onclick="showPage('home')">←</div>
+    <div class="topbar-info">
+      <div class="topbar-title" id="cl-title">เช็คลิสต์</div>
+      <div class="topbar-sub" id="cl-sub"></div>
+      <div class="progress-bar"><div class="progress-fill" id="cl-progress" style="width:0%"></div></div>
+    </div>
+    <div id="cl-counter" style="font-family:var(--mono);font-size:13px;color:var(--sub);min-width:40px;text-align:right"></div>
+  </div>
+  <div class="checklist-body" id="checklist-body"></div>
+  <div class="bottom-bar">
+    <button class="btn btn-ghost" onclick="saveProgress()" id="btn-save">💾 บันทึก</button>
+    <button class="btn btn-success" onclick="confirmSubmit()" id="btn-submit">✅ ส่งผล PM</button>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<div id="page-summary" class="page">
+  <div class="topbar">
+    <div style="cursor:pointer;padding:4px 8px;color:var(--sub);font-size:20px" onclick="showPage('home')">←</div>
+    <div class="topbar-info">
+      <div class="topbar-title">สรุปผล PM</div>
+    </div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding-bottom:40px">
+    <div class="summary-header">
+      <div class="summary-icon">✅</div>
+      <div class="summary-title">ส่งผลเรียบร้อย</div>
+      <div class="summary-sub" id="sum-sub">หัวหน้าจะได้รับการแจ้งเตือนเพื่อตรวจสอบ</div>
+    </div>
+    <div class="summary-stats">
+      <div class="stat-box"><div class="stat-num stat-ok" id="sum-ok">–</div><div class="stat-label">ปกติ</div></div>
+      <div class="stat-box"><div class="stat-num stat-bad" id="sum-bad">–</div><div class="stat-label">ไม่ปกติ</div></div>
+      <div class="stat-box"><div class="stat-num stat-skip" id="sum-skip">–</div><div class="stat-label">ข้ามรายการ</div></div>
+    </div>
+    <div style="padding:0 16px">
+      <button class="btn btn-primary" style="width:100%" onclick="showPage('home')">🏠 กลับหน้าหลัก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Dialog -->
+<div class="overlay" id="confirm-overlay">
+  <div class="dialog">
+    <div class="dialog-title" id="dlg-title">ยืนยันการส่งผล?</div>
+    <div class="dialog-body" id="dlg-body">คุณต้องการส่งผลการตรวจ PM ใช่หรือไม่?</div>
+    <div class="dialog-btns">
+      <button class="btn btn-ghost" onclick="closeDialog()">ยกเลิก</button>
+      <button class="btn btn-success" id="dlg-confirm">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="photo-input" accept="image/*" capture="environment">
+
+<script>
+// ============================================================
+const GAS_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec'; // ← ใส่ URL จริง
+const LIFF_ID = 'YOUR_LIFF_ID'; // ← ใส่ LIFF ID จริง
+
+let state = {
+  user:      null,   // { lineUserId, techId, name, dept, role }
+  workOrders: [],
+  currentWO:  null,
+  checklist:  [],    // items with result data
+  results:    {},    // itemKey → result
+};
+
+// ── Init ──────────────────────────────────────────────────────
+async function init() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    }
+
+    const profile = await liff.getProfile();
+    state.user = {
+      lineUserId: profile.userId,
+      name:       profile.displayName,
+      picture:    profile.pictureUrl,
+    };
+
+    // Load tech info from DB
+    await loadTechProfile();
+
+    // Check if opened with ?woId=
+    const params = new URLSearchParams(window.location.search);
+    const woId   = params.get('woId');
+    if (woId) {
+      await openChecklist(woId);
+    } else {
+      await loadWorkOrders();
+    }
+  } catch (e) {
+    showError('เกิดข้อผิดพลาด: ' + e.message);
+  }
+}
+
+async function loadTechProfile() {
+  const techs = await api('getTechnicians', {});
+  const tech  = techs.find(t => t.lineUserId === state.user.lineUserId);
+  if (tech) {
+    state.user = { ...state.user, ...tech };
+    document.getElementById('home-user-name').textContent = tech.name || state.user.name;
+    document.getElementById('home-dept').textContent      = `ช่าง ${tech.dept} | ${tech.role === 'supervisor' ? 'หัวหน้า' : 'ช่าง'}`;
+  } else {
+    document.getElementById('home-user-name').textContent = state.user.name;
+    document.getElementById('home-dept').textContent      = 'ยังไม่ได้ลงทะเบียน';
+  }
+  document.getElementById('home-date').textContent = new Date().toLocaleDateString('th-TH',{
+    day:'numeric', month:'short',
+  });
+}
+
+async function loadWorkOrders() {
+  showPage('home');
+  const container = document.getElementById('wo-list');
+  container.innerHTML = `<div class="empty-state"><div class="spinner" style="margin:0 auto"></div></div>`;
+
+  const params = {};
+  if (state.user.techId) params.techId = state.user.techId;
+  const wos = await api('getWorkOrders', params);
+  state.workOrders = wos;
+
+  const active = wos.filter(w => ['วางแผน','มอบหมาย','กำลังทำ','ส่งคืน'].includes(w.status));
+  const done   = wos.filter(w => ['รอตรวจสอบ','อนุมัติ','ปิดงาน'].includes(w.status)).slice(0, 5);
+
+  let html = '';
+  if (active.length === 0 && done.length === 0) {
+    html = `<div class="empty-state">
+      <div class="empty-icon">✅</div>
+      <div class="empty-title">ไม่มีงาน PM ที่ค้างอยู่</div>
+      <div class="empty-sub">งาน PM ทั้งหมดเสร็จเรียบร้อยแล้ว</div>
+    </div>`;
+  } else {
+    if (active.length > 0) {
+      html += `<div class="section-header">งานที่ต้องทำ (${active.length})</div>`;
+      html += active.map(wo => woCard(wo)).join('');
+    }
+    if (done.length > 0) {
+      html += `<div class="section-header" style="margin-top:8px">เสร็จแล้ว</div>`;
+      html += done.map(wo => woCard(wo)).join('');
+    }
+  }
+  container.innerHTML = html;
+}
+
+function woCard(wo) {
+  const today   = new Date().toISOString().split('T')[0];
+  const overdue = wo.dueDate && wo.dueDate < today;
+  const badges  = {
+    'วางแผน':'badge-assigned','มอบหมาย':'badge-assigned',
+    'กำลังทำ':'badge-inprogress','ส่งคืน':'badge-rejected',
+    'รอตรวจสอบ':'badge-pending','อนุมัติ':'badge-pending',
+  };
+  const cls = { 'มอบหมาย':'status-assigned','กำลังทำ':'status-inprogress','ส่งคืน':'status-rejected' };
+  return `<div class="wo-card ${cls[wo.status]||''}" onclick="openChecklist('${wo.woId}')">
+    <div class="wo-card-head">
+      <div class="wo-id">${wo.woId}</div>
+      <div class="wo-badge ${badges[wo.status]||''}">${wo.status}</div>
+    </div>
+    <div class="wo-machine">${wo.machine} — ${wo.dept}</div>
+    <div class="wo-detail">⏱ ${wo.freq} · ${wo.equipName || 'ทุกอุปกรณ์'}</div>
+    <div class="wo-due ${overdue?'':'ok'}">
+      📅 ${overdue ? '⚠ เกินกำหนด ' : ''}${wo.plannedDate}
+      ${wo.assignedName ? ' · 👷 ' + wo.assignedName : ''}
+    </div>
+  </div>`;
+}
+
+// ── Checklist ─────────────────────────────────────────────────
+async function openChecklist(woId) {
+  showPage('checklist');
+  document.getElementById('checklist-body').innerHTML =
+    `<div class="empty-state"><div class="spinner" style="margin:0 auto"></div></div>`;
+
+  const wo   = await api('getWorkOrderById', { woId });
+  const list = await api('getChecklist', { woId });
+  state.currentWO = wo;
+  state.checklist = list;
+
+  // Restore saved results
+  state.results = {};
+  list.forEach(item => {
+    if (item.status) {
+      state.results[item.itemKey] = {
+        resultValue: item.resultValue,
+        status:      item.status,
+        remark:      item.remark,
+        photoUrl:    item.photoUrl,
+      };
+    }
+  });
+
+  document.getElementById('cl-title').textContent = `${wo.machine} — ${wo.dept}`;
+  document.getElementById('cl-sub').textContent   = `${wo.freq} · ${wo.woId}`;
+
+  renderChecklist();
+  updateProgress();
+
+  // Auto-update status to InProgress if Assigned
+  if (wo.status === 'มอบหมาย') {
+    await api('updateWOStatus', { woId, status: 'กำลังทำ', updatedBy: state.user.techId });
+  }
+}
+
+function renderChecklist() {
+  const grouped = {};
+  state.checklist.forEach(item => {
+    const key = `${item.equipId}__${item.equipName}`;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(item);
+  });
+
+  let html = '';
+  Object.entries(grouped).forEach(([gKey, items]) => {
+    const [equipId, equipName] = gKey.split('__');
+    html += `<div class="equip-group">
+      <div class="equip-header">
+        <span class="equip-icon">⚙️</span>
+        <span class="equip-name">${equipName}</span>
+        <span class="equip-code">${equipId}</span>
+      </div>`;
+    items.forEach(item => { html += renderItem(item); });
+    html += `</div>`;
+  });
+  document.getElementById('checklist-body').innerHTML = html;
+}
+
+function renderItem(item) {
+  const r   = state.results[item.itemKey] || {};
+  const cls = r.status === 'ปกติ' ? 'done-ok' : r.status === 'ไม่ปกติ' ? 'done-bad' : r.status === 'ข้ามรายการ' ? 'done-skip' : '';
+  const photo = r.photoUrl
+    ? `<img src="${r.photoUrl}" class="photo-thumb" onclick="viewPhoto('${r.photoUrl}')">`
+    : `<button class="photo-btn" onclick="takePhoto('${item.itemKey}')"><span>📷</span> ถ่ายรูป</button>`;
+
+  return `<div class="check-item ${cls}" id="item-${item.itemKey}">
+    <div class="check-item-head" onclick="toggleExpand('${item.itemKey}')">
+      <div class="seq-badge">${item.seq||'–'}</div>
+      <div class="check-texts">
+        <div class="check-name">${item.checkItem || item.detail}</div>
+        ${item.criteria ? `<div class="check-criteria">📐 ${item.criteria}</div>` : ''}
+      </div>
+      <div style="font-size:18px;color:var(--sub);margin-left:8px">${r.status ? statusIcon(r.status) : '›'}</div>
+    </div>
+    <div class="check-expand" id="expand-${item.itemKey}">
+      ${item.detail ? `<div class="check-detail-box"><strong>รายละเอียด</strong>${item.detail}</div>` : ''}
+      ${item.method ? `<div class="check-detail-box"><strong>วิธีตรวจ</strong>${item.method}</div>` : ''}
+      <input class="result-input" type="text" placeholder="ค่าที่วัดได้ (ถ้ามี)"
+        value="${r.resultValue||''}" onchange="setResult('${item.itemKey}','resultValue',this.value)">
+      <div class="status-row">
+        <button class="status-btn ${r.status==='ปกติ'?'active-ok':''}"
+          onclick="setStatus('${item.itemKey}','ปกติ')">
+          <span class="s-icon">✅</span>ปกติ
+        </button>
+        <button class="status-btn ${r.status==='ไม่ปกติ'?'active-bad':''}"
+          onclick="setStatus('${item.itemKey}','ไม่ปกติ')">
+          <span class="s-icon">❌</span>ไม่ปกติ
+        </button>
+        <button class="status-btn ${r.status==='ข้ามรายการ'?'active-skip':''}"
+          onclick="setStatus('${item.itemKey}','ข้ามรายการ')">
+          <span class="s-icon">⏭</span>ข้าม
+        </button>
+      </div>
+      <textarea class="remark-input" placeholder="หมายเหตุ..."
+        onchange="setResult('${item.itemKey}','remark',this.value)">${r.remark||''}</textarea>
+      <div class="photo-row" id="photo-row-${item.itemKey}">${photo}</div>
+    </div>
+  </div>`;
+}
+
+function statusIcon(s) {
+  return s === 'ปกติ' ? '✅' : s === 'ไม่ปกติ' ? '❌' : '⏭';
+}
+
+function toggleExpand(key) {
+  const el = document.getElementById(`expand-${key}`);
+  el.classList.toggle('open');
+}
+
+function setStatus(itemKey, status) {
+  if (!state.results[itemKey]) state.results[itemKey] = {};
+  state.results[itemKey].status = status;
+  refreshItem(itemKey);
+  updateProgress();
+  // Auto-expand next item
+  const idx = state.checklist.findIndex(i => i.itemKey === itemKey);
+  if (idx >= 0 && idx + 1 < state.checklist.length) {
+    const nextKey = state.checklist[idx + 1].itemKey;
+    document.getElementById(`expand-${itemKey}`)?.classList.remove('open');
+    document.getElementById(`expand-${nextKey}`)?.classList.add('open');
+    setTimeout(() => document.getElementById(`item-${nextKey}`)?.scrollIntoView({ behavior:'smooth', block:'center' }), 150);
+  }
+}
+
+function setResult(itemKey, field, value) {
+  if (!state.results[itemKey]) state.results[itemKey] = {};
+  state.results[itemKey][field] = value;
+}
+
+function refreshItem(key) {
+  const item = state.checklist.find(i => i.itemKey === key);
+  if (!item) return;
+  const el = document.getElementById(`item-${key}`);
+  const r  = state.results[key] || {};
+  el.className = `check-item ${r.status === 'ปกติ' ? 'done-ok' : r.status === 'ไม่ปกติ' ? 'done-bad' : r.status === 'ข้ามรายการ' ? 'done-skip' : ''}`;
+  const seqBadge = el.querySelector('.seq-badge');
+  seqBadge.className = `seq-badge`;
+  const chevron = el.querySelector('.check-item-head > div:last-child');
+  chevron.textContent = r.status ? statusIcon(r.status) : '›';
+  // Update status buttons
+  el.querySelectorAll('.status-btn').forEach(btn => {
+    btn.className = 'status-btn';
+    if (btn.textContent.includes('ปกติ') && r.status === 'ปกติ')       btn.classList.add('active-ok');
+    if (btn.textContent.includes('ไม่ปกติ') && r.status === 'ไม่ปกติ') btn.classList.add('active-bad');
+    if (btn.textContent.includes('ข้าม') && r.status === 'ข้ามรายการ') btn.classList.add('active-skip');
+  });
+}
+
+function updateProgress() {
+  const total = state.checklist.length;
+  const done  = state.checklist.filter(i => state.results[i.itemKey]?.status).length;
+  const pct   = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('cl-progress').style.width = pct + '%';
+  document.getElementById('cl-counter').textContent  = `${done}/${total}`;
+}
+
+// ── Photo ──────────────────────────────────────────────────────
+let currentPhotoKey = null;
+function takePhoto(itemKey) {
+  currentPhotoKey = itemKey;
+  document.getElementById('photo-input').click();
+}
+document.getElementById('photo-input').addEventListener('change', async function(e) {
+  const file = e.target.files[0];
+  if (!file || !currentPhotoKey) return;
+  const base64 = await fileToBase64(file);
+  setResult(currentPhotoKey, 'photoBase64', base64);
+
+  // Preview
+  const row = document.getElementById(`photo-row-${currentPhotoKey}`);
+  if (row) {
+    row.innerHTML = `<img src="${base64}" class="photo-thumb">
+      <button class="photo-btn" onclick="takePhoto('${currentPhotoKey}')"><span>📷</span> เพิ่มรูป</button>`;
+  }
+  showToast('📷 บันทึกรูปแล้ว');
+  this.value = '';
+});
+
+function fileToBase64(file) {
+  return new Promise((res) => {
+    const reader = new FileReader();
+    reader.onload  = e => res(e.target.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Save & Submit ─────────────────────────────────────────────
+async function saveProgress() {
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.textContent = '💾 กำลังบันทึก...';
+  try {
+    const results = buildResultsArray();
+    for (const r of results) {
+      await api('saveCheckResult', { ...r, woId: state.currentWO.woId, checkedBy: state.user.techId });
+    }
+    showToast('✅ บันทึกแล้ว');
+  } catch(e) {
+    showToast('❌ บันทึกไม่สำเร็จ');
+  }
+  btn.disabled = false; btn.textContent = '💾 บันทึก';
+}
+
+function confirmSubmit() {
+  const total = state.checklist.length;
+  const done  = state.checklist.filter(i => state.results[i.itemKey]?.status).length;
+  const left  = total - done;
+  document.getElementById('dlg-title').textContent = 'ยืนยันการส่งผล PM?';
+  document.getElementById('dlg-body').textContent  =
+    left > 0
+      ? `ยังเหลืออีก ${left} รายการที่ยังไม่ได้บันทึก\nต้องการส่งผลเลยหรือไม่?`
+      : `ตรวจครบ ${total} รายการแล้ว พร้อมส่งให้หัวหน้าตรวจสอบ`;
+  document.getElementById('dlg-confirm').onclick = submitChecklist;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+
+async function submitChecklist() {
+  closeDialog();
+  document.getElementById('btn-submit').disabled = true;
+  document.getElementById('btn-submit').textContent = '⏳ กำลังส่ง...';
+  try {
+    await api('submitChecklist', {
+      woId:        state.currentWO.woId,
+      submittedBy: state.user.techId || state.user.lineUserId,
+      results:     buildResultsArray(),
+    });
+    const ok   = state.checklist.filter(i => state.results[i.itemKey]?.status === 'ปกติ').length;
+    const bad  = state.checklist.filter(i => state.results[i.itemKey]?.status === 'ไม่ปกติ').length;
+    const skip = state.checklist.filter(i => state.results[i.itemKey]?.status === 'ข้ามรายการ').length;
+    document.getElementById('sum-ok').textContent   = ok;
+    document.getElementById('sum-bad').textContent  = bad;
+    document.getElementById('sum-skip').textContent = skip;
+    document.getElementById('sum-sub').textContent  = `WO: ${state.currentWO.woId} — รอหัวหน้าตรวจสอบ`;
+    showPage('summary');
+  } catch(e) {
+    showToast('❌ ส่งไม่สำเร็จ: ' + e.message);
+    document.getElementById('btn-submit').disabled = false;
+    document.getElementById('btn-submit').textContent = '✅ ส่งผล PM';
+  }
+}
+
+function buildResultsArray() {
+  return Object.entries(state.results).map(([itemKey, r]) => ({
+    itemKey,
+    resultValue:  r.resultValue || '',
+    status:       r.status      || '',
+    remark:       r.remark      || '',
+    photoBase64:  r.photoBase64 || '',
+    photoUrl:     r.photoUrl    || '',
+  }));
+}
+
+// ── API ───────────────────────────────────────────────────────
+async function api(action, params) {
+  const isGet = ['getPMDatabase','getWorkOrders','getWorkOrderById','getChecklist','getTechnicians','getDashboard','getCalendar'].includes(action);
+  let url = `${GAS_URL}?action=${action}`;
+  let opts = {};
+  if (isGet) {
+    Object.entries(params).forEach(([k,v]) => { if(v) url += `&${k}=${encodeURIComponent(v)}`; });
+  } else {
+    opts = { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action, ...params }) };
+  }
+  const res  = await fetch(url, opts);
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'API Error');
+  return json.data;
+}
+
+// ── UI Helpers ────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(`page-${name}`)?.classList.add('active');
+  document.getElementById('page-loading')?.style.setProperty('display','none');
+  if (name === 'home') loadWorkOrders();
+}
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function showError(msg) {
+  document.getElementById('page-loading').innerHTML =
+    `<div style="text-align:center;padding:40px;color:var(--sub)">
+      <div style="font-size:40px;margin-bottom:12px">⚠️</div>
+      <div style="color:var(--text);font-size:16px;font-weight:600;margin-bottom:8px">เกิดข้อผิดพลาด</div>
+      <div style="font-size:13px">${msg}</div>
+    </div>`;
+}
+
+function closeDialog() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+}
+
+// ── Start ─────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
