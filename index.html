@@ -500,7 +500,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxm6iKsKerEaje43JYCO8UBy6rB6-Ka6672yUH4H5OkjM4I_v3tLnrqWp86tu_yu_-c/exec'; // ← ใส่ URL จริง
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzsEMb7_z0KHJQnKPCTWm3V8nRUKV2jk-dW5UziIe4kyWAkf_lZffGoSZzxFht2yv9O/exec'; // ← ใส่ URL จริง
 
 let appState = {
   page:        'dashboard',
@@ -514,19 +514,26 @@ let appState = {
 };
 
 // ── API ────────────────────────────────────────────────────────
+// ส่งทุก request เป็น GET เพื่อแก้ CORS กับ GAS จาก GitHub Pages
+const READ_ACTIONS = ['getPMDatabase','getWorkOrders','getWorkOrderById','getChecklist','getTechnicians','getDashboard','getCalendar'];
+
 async function api(action, params={}, body=null) {
-  const GET_ACTIONS = ['getPMDatabase','getWorkOrders','getWorkOrderById','getChecklist','getTechnicians','getDashboard','getCalendar'];
-  const isGet = GET_ACTIONS.includes(action);
   let url = `${GAS_URL}?action=${action}`;
-  let opts = {};
-  if (isGet) {
-    Object.entries(params).forEach(([k,v]) => { if(v!==''&&v!=null) url+=`&${k}=${encodeURIComponent(v)}`; });
+
+  if (READ_ACTIONS.includes(action)) {
+    // GET แบบธรรมดา — append params ใน URL
+    Object.entries(params).forEach(([k,v]) => {
+      if (v !== '' && v != null) url += `&${k}=${encodeURIComponent(v)}`;
+    });
   } else {
-    opts = { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action,...(body||params)}) };
+    // Write action — ส่งข้อมูลเป็น ?payload=JSON (ไม่ใช้ POST เพราะ GAS/CORS)
+    const data = body || params;
+    url += `&payload=${encodeURIComponent(JSON.stringify(data))}`;
   }
-  const res  = await fetch(url, opts);
+
+  const res  = await fetch(url);
   const json = await res.json();
-  if (!json.ok) throw new Error(json.error||'API Error');
+  if (!json.ok) throw new Error(json.error || 'API Error');
   return json.data;
 }
 
