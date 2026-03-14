@@ -47,16 +47,17 @@
     overflow-y: auto;
   }
   .logo {
-    padding: 22px 20px 18px;
+    padding: 14px 14px 12px;
     border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, #0a1628 0%, #0e1a2e 100%);
   }
-  .logo-mark {
-    font-size: 22px; font-weight: 700;
-    letter-spacing: -0.5px; color: var(--primary);
-    display: flex; align-items: center; gap: 10px;
+  .logo-img {
+    width: 100%; max-height: 54px;
+    object-fit: contain; object-position: left center;
+    display: block; margin-bottom: 5px;
+    filter: brightness(0) invert(1);
   }
-  .logo-mark span { color: var(--text); }
-  .logo-sub { font-size: 11px; color: var(--text3); margin-top: 3px; letter-spacing: 0.5px; }
+  .logo-sub { font-size: 10px; color: var(--text3); letter-spacing: 0.8px; text-transform: uppercase; }
   .nav { padding: 12px 10px; flex: 1; }
   .nav-section {
     font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
@@ -238,6 +239,44 @@
   .cal-day.other-month { opacity: 0.35; }
   .cal-day-num { font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 3px; }
   .today .cal-day-num { color: var(--primary); }
+  /* ── Calendar event mini-cards ── */
+  .cal-event {
+    font-size: 10px; line-height: 1.3;
+    background: rgba(30,48,80,0.9);
+    border-left: 3px solid var(--primary);
+    border-radius: 3px;
+    padding: 2px 4px;
+    margin-bottom: 2px;
+    cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    transition: opacity 0.15s;
+  }
+  .cal-event:hover { opacity: 0.8; }
+  .cal-event-top { display: flex; gap: 3px; align-items: center; }
+  .cal-event-machine { font-weight: 700; color: var(--text); font-size: 10px; }
+  .cal-event-dept { font-size: 9px; font-weight: 600; }
+  .cal-event-freq { font-size: 9px; color: var(--text3); margin-left: auto; }
+  .cal-event-name { font-size: 9px; color: var(--text3); overflow: hidden; text-overflow: ellipsis; }
+  .cal-more { font-size: 9px; color: var(--text3); text-align: center; margin-top: 2px; }
+
+  /* ── Calendar day popup ── */
+  .calday-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .calday-row:last-child { border-bottom: none; }
+  .calday-info { flex: 1; min-width: 0; }
+  .calday-woid { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+  .btn-del-wo {
+    background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+    color: var(--danger); border-radius: 6px; padding: 4px 8px;
+    cursor: pointer; font-size: 13px; flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .btn-del-wo:hover { background: rgba(239,68,68,0.25); }
+
   .cal-dot {
     display: inline-block; width: 6px; height: 6px;
     border-radius: 50%; margin: 1px;
@@ -347,8 +386,11 @@
 <!-- SIDEBAR -->
 <nav class="sidebar">
   <div class="logo">
-    <div class="logo-mark">⚙️ <span>PM System</span></div>
-    <div class="logo-sub">PREDICTIVE MAINTENANCE</div>
+    <img src="https://static.wixstatic.com/media/5a1d18_237433e7b53841cca74e8f402795c4ca~mv2.png/v1/fit/w_2500,h_1330,al_c/5a1d18_237433e7b53841cca74e8f402795c4ca~mv2.png"
+         alt="TST" class="logo-img"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="logo-mark" style="display:none">⚙️ <span>TST PM</span></div>
+    <div class="logo-sub">PM MANAGEMENT SYSTEM</div>
   </div>
   <div class="nav">
     <div class="nav-section">หลัก</div>
@@ -436,7 +478,21 @@
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('modal-create')">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="createWO()">➕ สร้าง Work Order</button>
+      <button class="btn btn-primary" id="btn-create-wo" onclick="createWO()">➕ สร้าง Work Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- CALENDAR DAY POPUP -->
+<div class="modal-overlay" id="modal-calday">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head">
+      <div class="modal-title">📅 <span id="calday-date"></span></div>
+      <div class="modal-close" onclick="closeModal('modal-calday')">✕</div>
+    </div>
+    <div class="modal-body" id="calday-body" style="max-height:65vh;overflow-y:auto"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-calday')">ปิด</button>
     </div>
   </div>
 </div>
@@ -726,20 +782,37 @@ async function loadCalendar() {
   const daysCount = new Date(y, m, 0).getDate();
   const today     = new Date().toISOString().split('T')[0];
   const DAYS      = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  const DEPT_COLOR  = { ME:'#60AFFE', EE:'#FBB040' };
+  const STATUS_COLOR = {
+    'วางแผน':'#F59E0B','มอบหมาย':'#3B9EFF','กำลังทำ':'#00D2B8',
+    'รอตรวจสอบ':'#A78BFA','อนุมัติ':'#22C55E','ปิดงาน':'#4A6380','ส่งคืน':'#EF4444'
+  };
 
   let html = `<div class="cal-grid">${DAYS.map(d=>`<div class="cal-day-label">${d}</div>`).join('')}`;
-  // Pad
   for (let i = 0; i < firstDay; i++) html += `<div class="cal-day other-month"></div>`;
   for (let d = 1; d <= daysCount; d++) {
     const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const events  = cal[dateStr] || [];
     const isToday = dateStr === today;
-    const deptColors = { ME: '#60AFFE', EE: '#FBB040' };
-    const dots = events.map(e => `<div class="cal-dot" style="background:${deptColors[e.dept]||'#888'}"></div>`).join('');
+    const show    = events.slice(0, 3);
+    const extra   = events.length - show.length;
+    const cards   = show.map(e => {
+      const sc = STATUS_COLOR[e.status] || '#888';
+      const dc = DEPT_COLOR[e.dept] || '#888';
+      return `<div class="cal-event" style="border-left-color:${sc}"
+                   onclick="event.stopPropagation();showCalDay('${dateStr}')">
+        <div class="cal-event-top">
+          <span class="cal-event-machine">${e.machine}</span>
+          <span class="cal-event-dept" style="color:${dc}">${e.dept}</span>
+          <span class="cal-event-freq">${e.freq}</span>
+        </div>
+        <div class="cal-event-name">${e.equipName||'ทุกอุปกรณ์'}</div>
+      </div>`;
+    }).join('');
     html += `<div class="cal-day${isToday?' today':''}" onclick="showCalDay('${dateStr}')">
-      <div class="cal-day-num">${d}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:2px">${dots}</div>
-      ${events.length > 3 ? `<div style="font-size:9px;color:var(--text3)">+${events.length-3}</div>` : ''}
+      <div class="cal-day-num">${d}${events.length>0?` <span style="font-size:9px;color:var(--text3);font-weight:400">(${events.length})</span>`:''}</div>
+      ${cards}
+      ${extra > 0 ? `<div class="cal-more">+${extra} รายการ</div>` : ''}
     </div>`;
   }
   html += '</div>';
@@ -755,9 +828,53 @@ function changeMonth(delta) {
 
 function showCalDay(dateStr) {
   const events = appState.calendar[dateStr] || [];
-  if (events.length === 0) return;
-  // Quick toast summary
-  showToast(`📅 ${dateStr}: ${events.length} รายการ PM`);
+  if (!events.length) return;
+  const DEPT_COLOR   = { ME:'#60AFFE', EE:'#FBB040' };
+  const STATUS_COLOR = {
+    'วางแผน':'#F59E0B','มอบหมาย':'#3B9EFF','กำลังทำ':'#00D2B8',
+    'รอตรวจสอบ':'#A78BFA','อนุมัติ':'#22C55E','ปิดงาน':'#4A6380','ส่งคืน':'#EF4444'
+  };
+  const canDelete = s => ['วางแผน','มอบหมาย'].includes(s);
+  const rows = events.map(e => `
+    <div class="calday-row">
+      <div class="calday-info">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
+          <span class="machine-badge m-${e.machine}">${e.machine}</span>
+          <span class="dept-badge d-${e.dept}" style="color:${DEPT_COLOR[e.dept]||'#888'}">${e.dept}</span>
+          <span style="font-size:11px;background:rgba(255,255,255,0.06);padding:1px 6px;border-radius:4px">${e.freq}</span>
+          <span style="font-size:11px;color:${STATUS_COLOR[e.status]||'#888'};font-weight:600">${e.status}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:2px">🔧 ${e.equipName||'ทุกอุปกรณ์'}</div>
+        ${e.assignedName ? `<div style="font-size:11px;color:var(--text3)">👷 ${e.assignedName}</div>` : ''}
+        <div class="calday-woid">${e.woId}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-calday');openWODetail('${e.woId}')">📄 ดู</button>
+        ${canDelete(e.status) ? `<button class="btn-del-wo" onclick="deleteWO('${e.woId}','${dateStr}')">🗑 ลบ</button>` : ''}
+      </div>
+    </div>`).join('');
+
+  const dateLabel = new Date(dateStr + 'T00:00').toLocaleDateString('th-TH',
+    {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  document.getElementById('calday-date').textContent = dateLabel;
+  document.getElementById('calday-body').innerHTML = rows;
+  openModal('modal-calday');
+}
+
+async function deleteWO(woId, dateStr) {
+  if (!confirm(`ยืนยันลบ ${woId} ?\n(ลบได้เฉพาะสถานะ วางแผน/มอบหมาย)`)) return;
+  try {
+    await api('deleteWorkOrder', { woId });
+    showToast(`🗑 ลบ ${woId} แล้ว`);
+    // อัปเดต local calendar
+    if (appState.calendar[dateStr]) {
+      appState.calendar[dateStr] = appState.calendar[dateStr].filter(e => e.woId !== woId);
+    }
+    closeModal('modal-calday');
+    loadCalendar();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  }
 }
 
 // ── Approve ────────────────────────────────────────────────────
@@ -892,6 +1009,9 @@ async function loadEquipOptions() {
 }
 
 async function createWO() {
+  const btn = document.getElementById('btn-create-wo');
+  if (btn.disabled) return; // ป้องกันกดซ้ำ
+
   const machine = document.getElementById('f-machine').value;
   const dept    = document.getElementById('f-dept').value;
   const freq    = document.getElementById('f-freq').value;
@@ -903,6 +1023,10 @@ async function createWO() {
   const techVal  = document.getElementById('f-tech').value;
   const [techId, techName] = techVal ? techVal.split('|') : ['', ''];
 
+  // ── Loading state ──
+  btn.disabled = true;
+  btn.innerHTML = '⏳ กำลังบันทึก...';
+
   try {
     const wo = await api('createWorkOrder', {}, {
       machine, dept, freq,
@@ -913,14 +1037,18 @@ async function createWO() {
     });
 
     if (techId) {
+      btn.innerHTML = '⏳ กำลังมอบหมาย...';
       await api('assignWorkOrder', {}, { woId: wo.woId, techId, techName, assignedBy: 'Planner' });
     }
 
     closeModal('modal-create');
-    showToast(`✅ สร้าง ${wo.woId} แล้ว`);
+    showToast(`✅ สร้าง ${wo.woId} เรียบร้อยแล้ว`);
     navTo('workorders');
   } catch(e) {
     showToast('❌ ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '➕ สร้าง Work Order';
   }
   document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
 }
