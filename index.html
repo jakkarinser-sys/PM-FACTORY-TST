@@ -546,10 +546,57 @@
   </div>
 </div>
 
+<!-- TECHNICIAN MODAL -->
+<div class="modal-overlay" id="modal-tech">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-head">
+      <div class="modal-title" id="tech-modal-title">👷 เพิ่มช่าง</div>
+      <div class="modal-close" onclick="closeModal('modal-tech')">✕</div>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tech-id">
+      <div class="form-row">
+        <label class="form-label">ชื่อ-สกุล <span style="color:var(--danger)">*</span></label>
+        <input type="text" class="form-input" id="tech-name" placeholder="เช่น สมชาย วงศ์ดี">
+      </div>
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label class="form-label">ส่วนงาน</label>
+          <select class="form-input" id="tech-dept">
+            <option value="ME">ME — ช่างกล</option>
+            <option value="EE">EE — ไฟฟ้า</option>
+            <option value="ALL">ALL — ทุกส่วนงาน</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">บทบาท</label>
+          <select class="form-input" id="tech-role">
+            <option value="technician">🔧 ช่าง</option>
+            <option value="supervisor">👨‍💼 หัวหน้า</option>
+            <option value="planner">📋 Planner</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">เบอร์โทร</label>
+        <input type="text" class="form-input" id="tech-phone" placeholder="0812345678">
+      </div>
+      <div class="form-row">
+        <label class="form-label">LINE User ID <span style="color:var(--text3);font-size:12px">(ถ้ามี)</span></label>
+        <input type="text" class="form-input" id="tech-line" placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-tech')">ยกเลิก</button>
+      <button class="btn btn-primary" id="tech-save-btn" onclick="saveTechnician()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzkwvybcNPReXVrW7NHp6adK71HRYpZ90rMds-HyifStkyulVH0iZVl7bE6nz_IJpXL/exec'; // ← ใส่ URL จริง
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbznNNDfbdNpRK_PcVCR7OPtOu_nx5wSz8WeWMqvh68EBbbWJaPt_YrPBZYwd0Nrzas/exec'; // ← ใส่ URL จริง
 
 let appState = {
   page:        'dashboard',
@@ -1124,12 +1171,11 @@ async function createWO() {
 async function openAssign(woId) {
   closeModal('modal-detail');
   document.getElementById('a-woid').value = woId;
-  const wo    = appState.workOrders.find(w => w.woId === woId) || await api('getWorkOrderById',{woId});
-  const techs = await api('getTechnicians', { dept: wo.dept });
-  document.getElementById('a-tech').innerHTML =
-    techs.filter(t => t.active !== 'false').map(t =>
-      `<option value="${t.techId}|${t.name}">${t.name} (${t.dept})</option>`
-    ).join('');
+  const techs = await api('getTechnicians', {});
+  const active = techs.filter(t => t.active !== 'false' && t.role !== 'supervisor');
+  document.getElementById('a-tech').innerHTML = active.length
+    ? active.map(t => `<option value="${t.techId}|${t.name}">${t.name} (${t.dept})</option>`).join('')
+    : '<option value="">— ยังไม่มีช่างในระบบ —</option>';
   openModal('modal-assign');
 }
 
@@ -1181,24 +1227,104 @@ async function doReject() {
 async function renderTechnicians() {
   const techs = await api('getTechnicians');
   appState.technicians = techs;
-  if (techs.length === 0) {
-    document.getElementById('content').innerHTML = `<div class="empty-state"><div class="icon">👷</div>ยังไม่มีช่างในระบบ</div>`;
-    return;
-  }
-  document.getElementById('content').innerHTML = `
-    <div class="section-card" style="overflow-x:auto">
-      <table class="tbl">
-        <thead><tr><th>Tech ID</th><th>ชื่อ</th><th>ส่วนงาน</th><th>บทบาท</th><th>LINE</th><th>สถานะ</th></tr></thead>
-        <tbody>${techs.map(t => `<tr>
+  const rows = techs.length === 0
+    ? `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">ยังไม่มีช่างในระบบ</td></tr>`
+    : techs.map(t => {
+        const isActive = t.active !== 'false';
+        const roleLabel = t.role === 'supervisor' ? '👨‍💼 หัวหน้า' : t.role === 'planner' ? '📋 Planner' : '🔧 ช่าง';
+        return `<tr style="opacity:${isActive?1:0.5}">
           <td><span style="font-family:var(--mono);font-size:12px">${t.techId}</span></td>
           <td>${t.name}</td>
           <td><span class="dept-badge d-${t.dept}">${t.dept}</span></td>
-          <td>${t.role === 'supervisor' ? '👨‍💼 หัวหน้า' : t.role === 'planner' ? '📋 Planner' : '🔧 ช่าง'}</td>
+          <td>${roleLabel}</td>
           <td style="font-size:12px;color:${t.lineUserId?'var(--success)':'var(--text3)'}">${t.lineUserId ? '✅ เชื่อมแล้ว' : '–'}</td>
-          <td style="color:${t.active!=='false'?'var(--success)':'var(--danger)'}">${t.active!=='false'?'ใช้งาน':'ปิดการใช้'}</td>
-        </tr>`).join('')}</tbody>
+          <td><span style="color:${isActive?'var(--success)':'var(--danger)'};font-size:13px">${isActive?'ใช้งาน':'ปิดการใช้'}</span></td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="openEditTech('${t.techId}')">✏️</button>
+            <button class="btn ${isActive?'btn-danger':'btn-success'}" style="padding:4px 10px;font-size:12px" onclick="toggleTechActive('${t.techId}')">
+              ${isActive?'ปิด':'เปิด'}
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+  document.getElementById('content').innerHTML = `
+    <div class="section-card" style="overflow-x:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-weight:600;font-size:15px">👷 รายชื่อช่าง (${techs.length} คน)</span>
+        <button class="btn btn-primary" onclick="openAddTech()">➕ เพิ่มช่าง</button>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>Tech ID</th><th>ชื่อ</th><th>ส่วนงาน</th><th>บทบาท</th><th>LINE</th><th>สถานะ</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
       </table>
     </div>`;
+}
+
+function openAddTech() {
+  document.getElementById('tech-modal-title').textContent = '👷 เพิ่มช่าง';
+  document.getElementById('tech-id').value      = '';
+  document.getElementById('tech-name').value    = '';
+  document.getElementById('tech-dept').value    = 'ME';
+  document.getElementById('tech-role').value    = 'technician';
+  document.getElementById('tech-phone').value   = '';
+  document.getElementById('tech-line').value    = '';
+  document.getElementById('tech-save-btn').textContent = '💾 บันทึก';
+  openModal('modal-tech');
+}
+
+function openEditTech(techId) {
+  const t = appState.technicians.find(x => x.techId === techId);
+  if (!t) return;
+  document.getElementById('tech-modal-title').textContent = '✏️ แก้ไขข้อมูลช่าง';
+  document.getElementById('tech-id').value      = t.techId;
+  document.getElementById('tech-name').value    = t.name;
+  document.getElementById('tech-dept').value    = t.dept;
+  document.getElementById('tech-role').value    = t.role;
+  document.getElementById('tech-phone').value   = t.phone || '';
+  document.getElementById('tech-line').value    = t.lineUserId || '';
+  document.getElementById('tech-save-btn').textContent = '💾 อัปเดต';
+  openModal('modal-tech');
+}
+
+async function saveTechnician() {
+  const techId = document.getElementById('tech-id').value;
+  const name   = document.getElementById('tech-name').value.trim();
+  if (!name) { showToast('❌ กรุณากรอกชื่อช่าง'); return; }
+  const body = {
+    techId,
+    name,
+    dept:       document.getElementById('tech-dept').value,
+    role:       document.getElementById('tech-role').value,
+    phone:      document.getElementById('tech-phone').value.trim(),
+    lineUserId: document.getElementById('tech-line').value.trim(),
+  };
+  const btn = document.getElementById('tech-save-btn');
+  btn.disabled = true; btn.textContent = '⏳...';
+  try {
+    if (techId) {
+      await api('updateTechnician', {}, body);
+      showToast('✅ อัปเดตข้อมูลช่างแล้ว');
+    } else {
+      const res = await api('addTechnician', {}, body);
+      showToast('✅ เพิ่มช่าง ' + (res.techId || '') + ' สำเร็จ');
+    }
+    closeModal('modal-tech');
+    await renderTechnicians();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function toggleTechActive(techId) {
+  try {
+    const res = await api('toggleTechnician', { techId });
+    showToast(res.active === 'false' ? '🔴 ปิดการใช้งานแล้ว' : '🟢 เปิดใช้งานแล้ว');
+    await renderTechnicians();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────
