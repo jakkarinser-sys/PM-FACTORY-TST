@@ -403,7 +403,7 @@
       <div class="form-grid2">
         <div class="form-row">
           <label class="form-label">ความถี่ PM</label>
-          <select class="form-input" id="f-freq">
+          <select class="form-input" id="f-freq" onchange="loadEquipOptions()">
             <option value="">-- ความถี่ --</option>
             <option value="2W">2W – ทุก 2 สัปดาห์</option>
             <option value="1M">1M – ทุก 1 เดือน</option>
@@ -500,7 +500,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxEPtELdvnRu2rNU_svVsWf-DUoxDi_9V1ydmT6CATyv9hbGG1FDndpyGIbau8YGTYs/exec'; // ← ใส่ URL จริง
+const GAS_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec'; // ← ใส่ URL จริง
 
 let appState = {
   page:        'dashboard',
@@ -841,13 +841,23 @@ async function openWODetail(woId) {
 async function loadEquipOptions() {
   const machine = document.getElementById('f-machine').value;
   const dept    = document.getElementById('f-dept').value;
+  const freq    = document.getElementById('f-freq').value;
   if (!machine || !dept) return;
 
-  const items = await api('getPMDatabase', { machine, dept });
-  const equips = [...new Map(items.map(i => [i['รหัสอุปกรณ์'], i['ชื่ออุปกรณ์']])).entries()];
+  const params = { machine, dept };
+  if (freq) params.freq = freq;
+
+  const items = await api('getPMDatabase', params);
+  // dedup โดยใช้รหัสอุปกรณ์เป็น key รองรับ header ทั้งแบบ English และ Thai
+  const equipMap = new Map();
+  items.forEach(i => {
+    const id   = i['รหัสอุปกรณ์'] || i.equipId || '';
+    const name = i['ชื่ออุปกรณ์'] || i.equipName || '';
+    if (id && !equipMap.has(id)) equipMap.set(id, name);
+  });
   const select = document.getElementById('f-equip');
   select.innerHTML = `<option value="">-- ทุกอุปกรณ์ --</option>` +
-    equips.map(([id, name]) => `<option value="${id}">${id} – ${name}</option>`).join('');
+    [...equipMap.entries()].map(([id, name]) => `<option value="${id}">${id} – ${name}</option>`).join('');
 
   const techs = await api('getTechnicians', { dept });
   appState.technicians = techs;
