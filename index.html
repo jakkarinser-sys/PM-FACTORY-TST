@@ -427,18 +427,14 @@
       <div class="form-grid2">
         <div class="form-row">
           <label class="form-label">รหัสเครื่องจักร</label>
-          <select class="form-input" id="f-machine" onchange="loadEquipOptions()">
-            <option value="">-- เลือกเครื่อง --</option>
-            <option>P1</option><option>P2</option><option>P3</option><option>P4</option>
-            <option>C4</option><option>C5</option>
+          <select class="form-input" id="f-machine" onchange="onMachineChange()">
+            <option value="">⏳ กำลังโหลด...</option>
           </select>
         </div>
         <div class="form-row">
           <label class="form-label">ส่วนงาน</label>
-          <select class="form-input" id="f-dept" onchange="loadEquipOptions()">
-            <option value="">-- เลือกส่วนงาน --</option>
-            <option value="ME">ME – เครื่องกล</option>
-            <option value="EE">EE – ไฟฟ้า</option>
+          <select class="form-input" id="f-dept" onchange="onDeptChange()">
+            <option value="">-- เลือกเครื่องก่อน --</option>
           </select>
         </div>
       </div>
@@ -446,10 +442,7 @@
         <div class="form-row">
           <label class="form-label">ความถี่ PM</label>
           <select class="form-input" id="f-freq" onchange="loadEquipOptions()">
-            <option value="">-- ความถี่ --</option>
-            <option value="2W">2W – ทุก 2 สัปดาห์</option>
-            <option value="1M">1M – ทุก 1 เดือน</option>
-            <option value="3M">3M – ทุก 3 เดือน</option>
+            <option value="">-- เลือกส่วนงานก่อน --</option>
           </select>
         </div>
         <div class="form-row">
@@ -556,7 +549,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyJL6f0knY2x2sQbMBAqqXIoN2NhO9Q_iUoUM8YdfJsAS2pknXkV7zeMpQdbgrX14Kr/exec'; // ← ใส่ URL จริง
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbz0XVJBbXPEGmgJT8O7eHDtQO08uTjBAiIxcYl5OJ6tcZ68dHpyHMliTjfrk5K0ZOZV/exec'; // ← ใส่ URL จริง
 
 let appState = {
   page:        'dashboard',
@@ -571,7 +564,7 @@ let appState = {
 
 // ── API ────────────────────────────────────────────────────────
 // ส่งทุก request เป็น GET เพื่อแก้ CORS กับ GAS จาก GitHub Pages
-const READ_ACTIONS = ['getPMDatabase','getWorkOrders','getWorkOrderById','getChecklist','getTechnicians','getDashboard','getCalendar'];
+const READ_ACTIONS = ['getPMDatabase','getFilterOptions','getWorkOrders','getWorkOrderById','getChecklist','getTechnicians','getDashboard','getCalendar'];
 
 async function api(action, params={}, body=null) {
   let url = `${GAS_URL}?action=${action}`;
@@ -609,7 +602,7 @@ async function navTo(page) {
   if (page === 'dashboard')    await renderDashboard();
   if (page === 'workorders')   await renderWorkOrders();
   if (page === 'calendar')     await renderCalendar();
-  if (page === 'create')       openModal('modal-create'), await renderDashboard();
+  if (page === 'create')       await openCreateModal();
   if (page === 'approve')      await renderApprove();
   if (page === 'technicians')  await renderTechnicians();
 }
@@ -702,7 +695,7 @@ async function renderWorkOrders(filter={}) {
       <option>P1</option><option>P2</option><option>P3</option><option>P4</option>
       <option>C4</option><option>C5</option>
     </select>
-    <button class="btn btn-primary btn-sm" onclick="openModal('modal-create')">➕ วางแผนใหม่</button>`;
+    <button class="btn btn-primary btn-sm" onclick="openCreateModal()">➕ วางแผนใหม่</button>`;
   document.getElementById('topbar-filters').innerHTML = filterHTML;
 
   if (wos.length === 0) {
@@ -961,7 +954,81 @@ async function openWODetail(woId) {
   }
 }
 
-// ── Create WO ─────────────────────────────────────────────────
+// ── Create WO — Dynamic Cascade ───────────────────────────────
+// เปิด modal + โหลด machine list จาก PM_Database
+async function openCreateModal() {
+  await renderDashboard();
+  openModal('modal-create');
+  // reset form
+  ['f-dept','f-freq','f-equip','f-tech'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.innerHTML = `<option value="">-- เลือกก่อนหน้าก่อน --</option>`; }
+  });
+  document.getElementById('f-note').value = '';
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+  // โหลด machine list
+  const mEl = document.getElementById('f-machine');
+  mEl.innerHTML = `<option value="">⏳ กำลังโหลด...</option>`;
+  try {
+    const opts = await api('getFilterOptions', {});
+    mEl.innerHTML = `<option value="">-- เลือกเครื่องจักร --</option>` +
+      opts.machines.map(m => `<option value="${m}">${m}</option>`).join('');
+  } catch(e) {
+    mEl.innerHTML = `<option value="">❌ โหลดไม่ได้</option>`;
+  }
+}
+
+// machine เปลี่ยน → โหลด dept options
+async function onMachineChange() {
+  const machine = document.getElementById('f-machine').value;
+  const dEl = document.getElementById('f-dept');
+  const fEl = document.getElementById('f-freq');
+  const eEl = document.getElementById('f-equip');
+  dEl.innerHTML = `<option value="">⏳ กำลังโหลด...</option>`;
+  fEl.innerHTML = `<option value="">-- เลือกส่วนงานก่อน --</option>`;
+  eEl.innerHTML = `<option value="">-- ทุกอุปกรณ์ --</option>`;
+  if (!machine) { dEl.innerHTML = `<option value="">-- เลือกเครื่องก่อน --</option>`; return; }
+  try {
+    const opts = await api('getFilterOptions', { machine });
+    const DEPT_LABEL = { ME:'ME – เครื่องกล', EE:'EE – ไฟฟ้า' };
+    dEl.innerHTML = `<option value="">-- เลือกส่วนงาน --</option>` +
+      opts.depts.map(d => `<option value="${d}">${DEPT_LABEL[d]||d}</option>`).join('');
+  } catch(e) {
+    dEl.innerHTML = `<option value="">❌ โหลดไม่ได้</option>`;
+  }
+}
+
+// dept เปลี่ยน → โหลด freq options + โหลดช่าง
+async function onDeptChange() {
+  const machine = document.getElementById('f-machine').value;
+  const dept    = document.getElementById('f-dept').value;
+  const fEl = document.getElementById('f-freq');
+  const eEl = document.getElementById('f-equip');
+  fEl.innerHTML = `<option value="">⏳ กำลังโหลด...</option>`;
+  eEl.innerHTML = `<option value="">-- ทุกอุปกรณ์ --</option>`;
+  if (!machine || !dept) { fEl.innerHTML = `<option value="">-- เลือกเครื่องก่อน --</option>`; return; }
+  try {
+    const [opts, techs] = await Promise.all([
+      api('getFilterOptions', { machine, dept }),
+      api('getTechnicians', { dept }),
+    ]);
+    const FREQ_LABEL = { '2W':'2W – ทุก 2 สัปดาห์','1M':'1M – ทุก 1 เดือน','3M':'3M – ทุก 3 เดือน','6M':'6M – ทุก 6 เดือน','1Y':'1Y – ทุกปี' };
+    fEl.innerHTML = `<option value="">-- เลือกความถี่ --</option>` +
+      opts.freqs.map(f => `<option value="${f}">${FREQ_LABEL[f]||f}</option>`).join('');
+    appState.technicians = techs;
+    document.getElementById('f-tech').innerHTML =
+      `<option value="">-- เลือกช่างทีหลัง --</option>` +
+      techs.filter(t => t.active !== 'false').map(t =>
+        `<option value="${t.techId}|${t.name}">${t.name}</option>`).join('');
+  } catch(e) {
+    fEl.innerHTML = `<option value="">❌ โหลดไม่ได้</option>`;
+  }
+}
+
+// ── วางแผนใหม่จากปุ่มใน WorkOrders page ──
+function openCreateModalFromBtn() { openCreateModal(); }
+
 async function loadEquipOptions() {
   const machine = document.getElementById('f-machine').value;
   const dept    = document.getElementById('f-dept').value;
@@ -1148,6 +1215,41 @@ function showToast(msg) {
 document.querySelectorAll('.modal-overlay').forEach(el => {
   el.addEventListener('click', e => { if(e.target === el) closeModal(el.id); });
 });
+
+// ── Auto-refresh ── ตรวจงานใหม่ทุก 30 วินาที ─────────────────
+let _prevApproveCount = 0;
+let _prevPendingCount = 0;
+
+async function autoRefreshBadge() {
+  try {
+    const wos = await api('getWorkOrders', {});
+    const approveCount = wos.filter(w => w.status === 'รอตรวจสอบ').length;
+    const pendingCount = wos.filter(w => ['วางแผน','มอบหมาย'].includes(w.status)).length;
+
+    // อัปเดต badge
+    document.getElementById('nb-approve').textContent = approveCount || '';
+    document.getElementById('nb-pending').textContent = pendingCount || '';
+    document.getElementById('last-refresh').textContent =
+      '🔄 ' + new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+
+    // แจ้งเตือนถ้ามีงานใหม่รอตรวจสอบ
+    if (_prevApproveCount > 0 && approveCount > _prevApproveCount) {
+      showToast(`🔔 มีงานใหม่รอตรวจสอบ ${approveCount} รายการ`);
+    }
+    _prevApproveCount = approveCount;
+    _prevPendingCount = pendingCount;
+
+    // ถ้ากำลังดูหน้า approve อยู่ → refresh อัตโนมัติ
+    if (appState.page === 'approve' && approveCount !== _prevApproveCount) {
+      renderApprove();
+    }
+  } catch(e) {
+    // ไม่แสดง error เพราะเป็น background task
+  }
+}
+
+// เริ่ม auto-refresh ทุก 30 วินาที
+setInterval(autoRefreshBadge, 30000);
 
 // ── Init ───────────────────────────────────────────────────────
 document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
