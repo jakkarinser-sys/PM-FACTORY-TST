@@ -417,7 +417,7 @@
 
 <script>
 // ============================================================
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxm6iKsKerEaje43JYCO8UBy6rB6-Ka6672yUH4H5OkjM4I_v3tLnrqWp86tu_yu_-c/exec'; // ← ใส่ URL จริง
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzsEMb7_z0KHJQnKPCTWm3V8nRUKV2jk-dW5UziIe4kyWAkf_lZffGoSZzxFht2yv9O/exec'; // ← ใส่ URL จริง
 const LIFF_ID = '2009442681-fsgLuWgA'; // ← ใส่ LIFF ID จริง
 
 let state = {
@@ -786,16 +786,20 @@ function buildResultsArray() {
 }
 
 // ── API ───────────────────────────────────────────────────────
+// ส่งทุก request เป็น GET เพื่อแก้ CORS กับ GAS
+const READ_ACTIONS = ['getPMDatabase','getWorkOrders','getWorkOrderById','getChecklist','getTechnicians','getDashboard','getCalendar'];
+
 async function api(action, params) {
-  const isGet = ['getPMDatabase','getWorkOrders','getWorkOrderById','getChecklist','getTechnicians','getDashboard','getCalendar'].includes(action);
   let url = `${GAS_URL}?action=${action}`;
-  let opts = {};
-  if (isGet) {
+
+  if (READ_ACTIONS.includes(action)) {
     Object.entries(params).forEach(([k,v]) => { if(v) url += `&${k}=${encodeURIComponent(v)}`; });
   } else {
-    opts = { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action, ...params }) };
+    // Write — ส่งเป็น ?payload=JSON ไม่ใช้ POST (CORS)
+    url += `&payload=${encodeURIComponent(JSON.stringify(params))}`;
   }
-  const res  = await fetch(url, opts);
+
+  const res  = await fetch(url);
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || 'API Error');
   return json.data;
